@@ -11,7 +11,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='dagan',
-    version='0.5',
+    version='0.5.1',
     description='Telegram Bot for UPV restaurants',
     long_description=long_description,
     url='',

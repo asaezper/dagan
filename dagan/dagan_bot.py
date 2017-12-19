@@ -144,8 +144,6 @@ class DaganBot(MenuBaseBot):
         if ok:
             send_msg(self.bot, chat_id, self.info.bars[bar_id].show_info(menu_id), chain_keyboard, with_cancel=False)
             DBManager.report_menu(chat_id, bar_id, menu_id, mode=ReportMode.AUTO)
-        else:
-            send_msg(self.bot, chat_id, labels.NO_INFO, chain_keyboard, with_cancel=False)
 
     def _generate_menu_info(self, chat_id, bar_id, menu_id, chain):
         chain_keyboard = []
