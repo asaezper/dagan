@@ -104,3 +104,4 @@ ENV/
 .idea/
 /dagan/resources/_tmp_token_file_.json
 /dagan/resources/dagan.db
+/dagan/resources/dagan-bup.db
