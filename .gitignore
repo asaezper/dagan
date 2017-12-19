@@ -99,3 +99,8 @@ ENV/
 
 # mypy
 .mypy_cache/
+/scripts/
+/dagan/internal_data/upv_parameters.py
+.idea/
+/dagan/resources/_tmp_token_file_.json
+/dagan/resources/dagan.db
