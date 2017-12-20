@@ -25,24 +25,27 @@ class DaganBot(MenuBaseBot):
         stopped = threading.Event()
         while not stopped.wait(dagan_parameters.THREAD_TIMER_SECONDS):
             # Check time
-            weekday = datetime.datetime.today().weekday()
-            hour = datetime.datetime.today().hour + (datetime.datetime.today().minute / 60)
-            if weekday in dagan_parameters.SUBS_WEEKDAY_LIST and \
-                    dagan_parameters.SUBS_HOUR_INTERVAL[0] <= hour < dagan_parameters.SUBS_HOUR_INTERVAL[1]:
-                self.update_info()
-                with DBReader.subscriptions_lock:
-                    subs = dict(DBReader.subscriptions)
-                reports = DBManager.read_reports()
-                for chat_id in subs.keys():
-                    for bar_id in subs[chat_id].keys():
-                        for menu_id in subs[chat_id][bar_id]:
-                            if chat_id not in reports.keys() \
-                                    or bar_id not in reports[chat_id].keys() \
-                                    or menu_id not in reports[chat_id][bar_id]:
-                                try:
-                                    self.send_menu_info_by_new(chat_id, bar_id, menu_id, chain=True)
-                                except Exception as err:
-                                    logging.getLogger(__name__).exception(err)
+            try:
+                weekday = datetime.datetime.today().weekday()
+                hour = datetime.datetime.today().hour + (datetime.datetime.today().minute / 60)
+                if weekday in dagan_parameters.SUBS_WEEKDAY_LIST and \
+                        dagan_parameters.SUBS_HOUR_INTERVAL[0] <= hour < dagan_parameters.SUBS_HOUR_INTERVAL[1]:
+                    self.update_info()
+                    with DBReader.subscriptions_lock:
+                        subs = dict(DBReader.subscriptions)
+                    reports = DBManager.read_reports()
+                    for chat_id in subs.keys():
+                        for bar_id in subs[chat_id].keys():
+                            for menu_id in subs[chat_id][bar_id]:
+                                if chat_id not in reports.keys() \
+                                        or bar_id not in reports[chat_id].keys() \
+                                        or menu_id not in reports[chat_id][bar_id]:
+                                    try:
+                                        self.send_menu_info_by_new(chat_id, bar_id, menu_id, chain=True)
+                                    except Exception as err:
+                                        logging.getLogger(__name__).exception(err)
+            except Exception as err:
+                logging.getLogger(__name__).exception(err)
 
     """ Command Handlers """
 
@@ -53,14 +56,25 @@ class DaganBot(MenuBaseBot):
         except Exception as err:
             logging.getLogger(__name__).exception(err)
 
+    def subs(self, bot, update):
+        try:
+            info = ''
+            for bar_id, menu_id in DBReader.get_subscription_by_chat_id(update.message.chat_id):
+                try:
+                    info += self.info.bars[bar_id].generate_menu_name(int(menu_id))
+                except:
+                    info += Bar._gen_menu_name(DBReader.bars[bar_id], DBReader.menus[bar_id][menu_id])
+            if not info:
+                info = labels.NO_SUBS
+            reply_msg(update, info)
+        except Exception as err:
+            logging.getLogger(__name__).exception(err)
+
     def help(self, bot, update):
         update.message.reply_text(labels.HELP + pkg_resources.require("dagan")[0].version, parse_mode=labels.MODE)
 
     def error(self, bot, update, error):
         logging.getLogger(__name__).warning('Update "%s" caused error "%s"', update, error)
-
-    def eegg(self, bot, update):
-        update.message.reply_text(labels.EEGG, parse_mode=labels.MODE)
 
     """ Callback Query Handler """
 
@@ -170,14 +184,3 @@ class DaganBot(MenuBaseBot):
     def _generate_unsub_btn(self, bar_id, menu_id):
         return InlineKeyboardButton(labels.REM_BTN,
                                     callback_data=dagan_parameters.CBDATA_REM + Menu.generate_menu_cb(bar_id, menu_id))
-
-    # updater.dispatcher.add_handler(CommandHandler('subs', dagan.subs))
-    # def subs(bot, update):
-    #     info = ''
-    #     if update.message.chat_id in subscriptions.keys():
-    #         for bar_id in subscriptions[update.message.chat_id].keys():
-    #             for menu_id in subscriptions[update.message.chat_id][bar_id]:
-    #                 info += self.info.bars[bar_id].generate_menu_name(int(menu_id))
-    #     if not info:
-    #         info = labels.NO_SUBS
-    #     reply_msg(update, info)

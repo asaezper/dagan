@@ -18,7 +18,7 @@ def edit_msg(bot, update, msg_txt, plain_keyboard=None, cols=2, with_cancel=True
 
 def reply_msg(update, msg_txt, plain_keyboard=None, cols=2, with_cancel=True):
     reply_markup = _prepare_keyboard(plain_keyboard, cols, with_cancel)
-    update.message.reply_text(msg_txt, reply_markup=reply_markup)
+    update.message.reply_text(msg_txt, parse_mode=labels.MODE, reply_markup=reply_markup)
 
 
 def remove_msg(bot, update):

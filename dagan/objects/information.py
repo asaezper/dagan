@@ -51,8 +51,12 @@ class Bar:
         return info
 
     def generate_menu_name(self, index):
-        info = '*' + self.name + '  >  '
-        info += self.menus[index].name + '*' + new_line()
+        return self._gen_menu_name(self.name, self.menus[index].name)
+
+    @staticmethod
+    def _gen_menu_name(bar_name, menu_name):
+        info = '*' + bar_name + '  >  '
+        info += menu_name + '*' + new_line()
         return info
 
     @staticmethod

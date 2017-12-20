@@ -120,6 +120,16 @@ class DBReader:
                    and bar_id in cls.subscriptions[chat_id].keys() and menu_id in cls.subscriptions[chat_id][bar_id]
 
     @classmethod
+    def get_subscription_by_chat_id(cls, chat_id):
+        your_subs = []
+        with cls.subscriptions_lock:
+            if chat_id in cls.subscriptions.keys():
+                for bar_id in cls.subscriptions[chat_id]:
+                    for menu_id in cls.subscriptions[chat_id][bar_id]:
+                        your_subs.append([bar_id, menu_id])
+        return your_subs
+
+    @classmethod
     def add_subscription(cls, chat_id, bar_id, menu_id):
         with cls.subscriptions_lock:
             if chat_id not in cls.subscriptions.keys():
