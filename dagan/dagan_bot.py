@@ -9,8 +9,8 @@ from dagan.data.labels import NO_SUBS, HELP, NO_INFO, CHOOSE_MENU, AGAIN_BTN, SU
     CHOOSE_RESTAURANT
 from dagan.data.public_parameters import THREAD_TIMER_SECONDS, SUBS_WEEKDAY_LIST, SUBS_HOUR_INTERVAL, MODE, \
     CBDATA_CANCEL, CBDATA_REQUEST, CBDATA_RESTAURANT, CBDATA_MENU, CBDATA_SUBSCRIBE, CBDATA_UNSUBSCRIBE, CBDATA_START
-from dagan.database.db_manager import DBReader, DBManager
-from dagan.database.report_modes import ReportMode
+from dagan.database.db_enums import ReportMode
+from dagan.database.data_manager import DataManager
 from dagan.upv.info import Restaurant, Menu
 from dagan.upv.menu_bot import MenuBot
 
@@ -29,20 +29,34 @@ class DaganBot(MenuBot):
     """ Command Handlers """
 
     def start(self, bot, update):
+        """
+        Command Handler for start
+        Send a keypad to select available restaurants
+
+        :param bot: API's bot instance
+        :param update: API's update instance
+        """
         try:
-            self.reload()
-            self.send_start_menu(update)
+            self.reload()  # Update info
+            self.send_start_keypad(update)  # Send the keypad
         except Exception as err:
             logging.getLogger(__name__).exception(err)
 
-    def subs(self, bot, update):
+    def subscriptions(self, bot, update):
+        """
+        Command Handler for subscriptions
+        Send a keypad to select available restaurants
+
+        :param bot: API's bot instance
+        :param update: API's update instance
+        """
         try:
             info = ''
-            for res_id, menu_id in DBReader.get_subscription_by_chat_id(update.message.chat_id):
+            for res_id, menu_id in DataManager.get_subscription_by_chat_id(update.message.chat_id):
                 try:
                     info += self.info.restaurants[res_id].show_menu_name(int(menu_id))
                 except:
-                    info += Restaurant.generate_menu_name(DBReader.restaurants[res_id], DBReader.menus[res_id][menu_id])
+                    info += Restaurant.generate_menu_name(DataManager.restaurants[res_id], DataManager.menus[res_id][menu_id])
             if not info:
                 info = NO_SUBS
             self.send_msg(update.message.chat_id, info)
@@ -68,9 +82,9 @@ class DaganBot(MenuBot):
                 if weekday in SUBS_WEEKDAY_LIST and \
                         SUBS_HOUR_INTERVAL[0] <= hour < SUBS_HOUR_INTERVAL[1]:
                     self.reload()
-                    with DBReader.subscriptions_lock:
-                        subs = dict(DBReader.subscriptions)
-                    reports = DBManager.read_reports()
+                    with DataManager.subscriptions_lock:
+                        subs = dict(DataManager.subscriptions)
+                    reports = DataManager.read_reports()
                     for chat_id in subs.keys():
                         for res_id in subs[chat_id].keys():
                             for menu_id in subs[chat_id][res_id]:
@@ -112,7 +126,7 @@ class DaganBot(MenuBot):
                 menu_id, res_id = my_req_id.replace(CBDATA_MENU, '', 1).split(
                     CBDATA_RESTAURANT)
                 res_id, menu_id = int(res_id), int(menu_id)
-                DBReader.add_subscription(update.effective_chat.id, res_id, menu_id)
+                DataManager.subscribe(update.effective_chat.id, res_id, menu_id)
                 self.send_menu_info_by_edit(query, res_id, menu_id, chain=True)
             elif my_req_id.startswith(CBDATA_UNSUBSCRIBE):
                 # Subscription
@@ -120,7 +134,7 @@ class DaganBot(MenuBot):
                 menu_id, res_id = my_req_id.replace(CBDATA_MENU, '', 1).split(
                     CBDATA_RESTAURANT)
                 res_id, menu_id = int(res_id), int(menu_id)
-                DBReader.remove_subscription(update.effective_chat.id, res_id, menu_id)
+                DataManager.unsubscribe(update.effective_chat.id, res_id, menu_id)
                 self.send_menu_info_by_edit(query, res_id, menu_id, chain=True)
             elif my_req_id == CBDATA_START:
                 self.start(bot, query)
@@ -129,7 +143,7 @@ class DaganBot(MenuBot):
 
     """ Data Senders """
 
-    def send_start_menu(self, update):
+    def send_start_keypad(self, update):
         if not self.info.restaurants:
             self.send_msg(update.message.chat_id, NO_INFO)
         else:
@@ -160,7 +174,7 @@ class DaganBot(MenuBot):
             self.edit_msg(query.message.chat_id, query.message.message_id,
                           self.info.restaurants[res_id].show_info(menu_id),
                           chain_keyboard, with_cancel=False)
-            DBManager.report_menu(query.message.chat_id, res_id, menu_id, mode=ReportMode.MANUAL)
+            DataManager.report_menu(query.message.chat_id, res_id, menu_id, mode=ReportMode.MANUAL)
         else:
             self.edit_msg(query.message.chat_id, query.message.message_id, NO_INFO, chain_keyboard,
                           with_cancel=False)
@@ -169,7 +183,7 @@ class DaganBot(MenuBot):
         ok, chain_keyboard = self._generate_menu_info(chat_id, res_id, menu_id, chain)
         if ok:
             self.send_msg(chat_id, self.info.restaurants[res_id].show_info(menu_id), chain_keyboard, with_cancel=False)
-            DBManager.report_menu(chat_id, res_id, menu_id, mode=ReportMode.AUTO)
+            DataManager.report_menu(chat_id, res_id, menu_id, mode=ReportMode.AUTO)
 
     def _generate_menu_info(self, chat_id, res_id, menu_id, chain):
         chain_keyboard = []
@@ -184,7 +198,7 @@ class DaganBot(MenuBot):
     """ Auxiliary methods for Data Senders """
 
     def generate_sub_rem_btn(self, chat_id, res_id, menu_id):
-        if DBReader.check_subscription(chat_id, res_id, menu_id):
+        if DataManager.check_subscription(chat_id, res_id, menu_id):
             return self._generate_unsub_btn(res_id, menu_id)
         else:
             return self._generate_sub_btn(res_id, menu_id)

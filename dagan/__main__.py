@@ -24,7 +24,7 @@ def main():
 
     # Add handler: Commands, Buttons and Error
     updater.dispatcher.add_handler(CommandHandler('start', dagan.start))
-    updater.dispatcher.add_handler(CommandHandler('subscriptions', dagan.subs))
+    updater.dispatcher.add_handler(CommandHandler('subscriptions', dagan.subscriptions))
     updater.dispatcher.add_handler(CommandHandler('help', dagan.help))
 
     updater.dispatcher.add_handler(CallbackQueryHandler(dagan.button))
