@@ -3,12 +3,12 @@ import logging
 import sqlite3
 import threading
 
-from dagan.data.public_parameters import DB_FILE
+from dagan.data import public_parameters
 from dagan.database.db_enums import ReportMode
 
 
 class DBManager:
-    conn = sqlite3.connect(DB_FILE, check_same_thread=False)  # Database connection
+    conn = sqlite3.connect(public_parameters.DB_FILE, check_same_thread=False)  # Database connection
     lock = threading.Lock()  # Lock for access to the DB
 
     @classmethod

@@ -14,7 +14,7 @@ NO_SUBS = 'Sin subscripciones :('
 Buttons
 """
 CANCEL_BTN = 'Cancelar'
-AGAIN_BTN = 'Nueva consulta'
+AGAIN_BTN = 'Consultar'
 SUB_BTN = 'Subscribir'
 REM_BTN = 'Eliminar subscripción'
 

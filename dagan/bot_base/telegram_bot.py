@@ -1,8 +1,7 @@
 from telegram import InlineKeyboardMarkup
 from telegram.inline.inlinekeyboardbutton import InlineKeyboardButton
 
-from dagan.data.labels import CANCEL_BTN
-from dagan.data.public_parameters import KEYPAD_COLUMNS, CBDATA_CANCEL, MODE
+from dagan.data import public_parameters, labels
 
 
 class TelegramBot:
@@ -13,7 +12,7 @@ class TelegramBot:
     def __init__(self, bot):
         self.bot = bot  # API's bot instance (token, basics methods, etc)
 
-    def send_msg(self, chat_id, msg_txt, button_list=None, cols=KEYPAD_COLUMNS, with_cancel=True):
+    def send_msg(self, chat_id, msg_txt, button_list=None, cols=public_parameters.KEYPAD_COLUMNS, with_cancel=True):
         """
         Method to send a message
 
@@ -24,9 +23,10 @@ class TelegramBot:
         :param with_cancel: Add a cancel button (True / False)
         """
         keypad = self.prepare_keypad(button_list, cols, with_cancel)
-        self.bot.send_message(chat_id=chat_id, text=msg_txt, parse_mode=MODE, reply_markup=keypad)
+        self.bot.send_message(chat_id=chat_id, text=msg_txt, parse_mode=public_parameters.MODE, reply_markup=keypad)
 
-    def edit_msg(self, chat_id, msg_id, msg_txt, button_list=None, cols=KEYPAD_COLUMNS, with_cancel=True):
+    def edit_msg(self, chat_id, msg_id, msg_txt, button_list=None, cols=public_parameters.KEYPAD_COLUMNS,
+                 with_cancel=True):
         """
         Method to edit a message
 
@@ -38,10 +38,11 @@ class TelegramBot:
         :param with_cancel: Add a cancel button (True / False)
         """
         keypad = self.prepare_keypad(button_list, cols, with_cancel)
-        self.bot.edit_message_text(text=msg_txt, chat_id=chat_id, message_id=msg_id, parse_mode=MODE,
+        self.bot.edit_message_text(text=msg_txt, chat_id=chat_id, message_id=msg_id, parse_mode=public_parameters.MODE,
                                    reply_markup=keypad)
 
-    def reply_msg(self, chat_id, msg_id, msg_txt, button_list=None, cols=KEYPAD_COLUMNS, with_cancel=True):
+    def reply_msg(self, chat_id, msg_id, msg_txt, button_list=None, cols=public_parameters.KEYPAD_COLUMNS,
+                  with_cancel=True):
         """
         Method to reply to a message
 
@@ -53,7 +54,7 @@ class TelegramBot:
         :param with_cancel: Add a cancel button (True / False)
         """
         keypad = self.prepare_keypad(button_list, cols, with_cancel)
-        self.bot.send_message(chat_id, msg_txt, reply_to_message_id=msg_id, parse_mode=MODE,
+        self.bot.send_message(chat_id, msg_txt, reply_to_message_id=msg_id, parse_mode=public_parameters.MODE,
                               reply_markup=keypad)
 
     def remove_msg(self, chat_id, msg_id):
@@ -77,7 +78,7 @@ class TelegramBot:
         if button_list is not None and button_list:
             keypad = TelegramBot.grouper(button_list, cols)  # Group buttons in cols
             if with_cancel:  # Add a cancel button
-                keypad.append([InlineKeyboardButton(CANCEL_BTN, callback_data=CBDATA_CANCEL)])
+                keypad.append([InlineKeyboardButton(labels.CANCEL_BTN, callback_data=public_parameters.CBDATA_CANCEL)])
             return InlineKeyboardMarkup(keypad)
         else:
             return None

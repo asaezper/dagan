@@ -54,7 +54,7 @@ class DataManager(DBManager):
             if res_id not in cls.subscriptions[chat_id].keys():
                 cls.subscriptions[chat_id][res_id] = []
             if menu_id not in cls.subscriptions[chat_id][res_id]:
-                DataManager.subscribe(chat_id, res_id, menu_id)
+                DBManager.subscribe(chat_id, res_id, menu_id)
                 cls.subscriptions[chat_id][res_id].append(menu_id)
 
     @classmethod

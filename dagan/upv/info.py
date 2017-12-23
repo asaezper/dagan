@@ -1,9 +1,7 @@
 import json
 import time
 
-from dagan.data.labels import PRICE, FIRST, SECOND, OTHERS, OBSERVATIONS
-from dagan.data.public_parameters import INFO_EXP_TIME, RESTAURANT_REPLACE, CBDATA_RESTAURANT, CBDATA_MENU, NEW_LINE, \
-    CLEAN_TEXT_REPLACE, BOLD_START, BOLD_END, PRICE_REPLACE, RESTAURANT_MENU_SEPARATOR, ALL_INFO_REPLACE
+from dagan.data import labels, public_parameters
 
 
 def clean_text(text):
@@ -12,10 +10,10 @@ def clean_text(text):
     :param text: Plain text
     :return: Corrected text
     """
-    for org, dst in CLEAN_TEXT_REPLACE:
+    for org, dst in public_parameters.CLEAN_TEXT_REPLACE:
         text = text.replace(org, dst)
-    while text.endswith(NEW_LINE):
-        text = text[0:-len(NEW_LINE)]
+    while text.endswith(public_parameters.NEW_LINE):
+        text = text[0:-len(public_parameters.NEW_LINE)]
     return text.strip()
 
 
@@ -34,9 +32,9 @@ class Info:
         :param text: Text (a json list of dictionaries)
         """
         self.restaurants = {}  # Dictrionary with id (int): restaurant (Restaurant)
-        self.expiration_time = time.time() + INFO_EXP_TIME  # With each load we reset the expiration counter
+        self.expiration_time = time.time() + public_parameters.INFO_EXP_TIME  # With each load we reset the expiration counter
         # Clean input info
-        for org, dst in ALL_INFO_REPLACE:
+        for org, dst in public_parameters.ALL_INFO_REPLACE:
             text = text.replace(org, dst)
         for item in json.loads(text):
             # Text is a list of dictionarys, and each dictionary contains info from the menu of a restaurant
@@ -83,7 +81,7 @@ class Restaurant:
         :param menu_index: Index of menu to inform about
         :return: String to send
         """
-        info = BOLD_START + self.name + RESTAURANT_MENU_SEPARATOR
+        info = public_parameters.BOLD_START + self.name + public_parameters.RESTAURANT_MENU_SEPARATOR
         info += self.menus[menu_index].show_info()
         return info
 
@@ -103,7 +101,8 @@ class Restaurant:
         :param menu_name: Menu's name
         :return:
         """
-        return BOLD_START + restaurant_name + RESTAURANT_MENU_SEPARATOR + menu_name + BOLD_END + NEW_LINE
+        return public_parameters.BOLD_START + restaurant_name + public_parameters.RESTAURANT_MENU_SEPARATOR + \
+               menu_name + public_parameters.BOLD_END + public_parameters.NEW_LINE
 
     @staticmethod
     def clean_name(text):
@@ -112,7 +111,7 @@ class Restaurant:
         :param text: Text with restaurant's name
         :return: Formatted text
         """
-        for org, dst in RESTAURANT_REPLACE:
+        for org, dst in public_parameters.RESTAURANT_REPLACE:
             text = text.replace(org, dst)
         return text.strip()
 
@@ -124,7 +123,7 @@ class Restaurant:
         :param res_id: Restaurant id
         :return: Callback data
         """
-        return CBDATA_RESTAURANT + str(res_id)
+        return public_parameters.CBDATA_RESTAURANT + str(res_id)
 
 
 class Menu:
@@ -155,22 +154,26 @@ class Menu:
         Build a string to be sent
         :return: String to send
         """
-        text = self.name + BOLD_END + NEW_LINE
+        text = self.name + public_parameters.BOLD_END + public_parameters.NEW_LINE
         if self.price:
-            text += PRICE + self.price
-        text += NEW_LINE
+            text += labels.PRICE + self.price
+        text += public_parameters.NEW_LINE
         if self.first:
-            text += NEW_LINE + BOLD_START + FIRST + BOLD_END + NEW_LINE
-            text += self.first + NEW_LINE
+            text += public_parameters.NEW_LINE + public_parameters.BOLD_START + labels.FIRST + \
+                    public_parameters.BOLD_END + public_parameters.NEW_LINE
+            text += self.first + public_parameters.NEW_LINE
         if self.second:
-            text += NEW_LINE + BOLD_START + SECOND + BOLD_END + NEW_LINE
-            text += self.second + NEW_LINE
+            text += public_parameters.NEW_LINE + public_parameters.BOLD_START + labels.SECOND + \
+                    public_parameters.BOLD_END + public_parameters.NEW_LINE
+            text += self.second + public_parameters.NEW_LINE
         if self.others:
-            text += NEW_LINE + BOLD_START + OTHERS + BOLD_END + NEW_LINE
-            text += self.others + NEW_LINE
+            text += public_parameters.NEW_LINE + public_parameters.BOLD_START + \
+                    labels.OTHERS + public_parameters.BOLD_END + public_parameters.NEW_LINE
+            text += self.others + public_parameters.NEW_LINE
         if self.observations:
-            text += NEW_LINE + BOLD_START + OBSERVATIONS + BOLD_END + NEW_LINE
-            text += self.observations + NEW_LINE
+            text += public_parameters.NEW_LINE + public_parameters.BOLD_START + \
+                    labels.OBSERVATIONS + public_parameters.BOLD_END + public_parameters.NEW_LINE
+            text += self.observations + public_parameters.NEW_LINE
         return text.strip()
 
     @staticmethod
@@ -180,7 +183,7 @@ class Menu:
         :param price: Text with price info
         :return: Formatted text
         """
-        for org, dst in PRICE_REPLACE:
+        for org, dst in public_parameters.PRICE_REPLACE:
             price = price.replace(org, dst)
         return price.strip()
 
@@ -193,4 +196,4 @@ class Menu:
         :param menu_id: Menu id
         :return: Callback data
         """
-        return CBDATA_MENU + str(menu_id) + CBDATA_RESTAURANT + str(res_id)
+        return public_parameters.CBDATA_MENU + str(menu_id) + public_parameters.CBDATA_RESTAURANT + str(res_id)

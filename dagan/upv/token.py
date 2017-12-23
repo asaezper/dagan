@@ -2,7 +2,7 @@ import json
 import logging
 import time
 
-from dagan.data.public_parameters import TOKEN_FILE
+from dagan.data import public_parameters
 
 
 class Token:
@@ -39,7 +39,7 @@ class Token:
         Read the token info from a expected file
         """
         try:
-            with open(TOKEN_FILE) as file:
+            with open(public_parameters.TOKEN_FILE) as file:
                 self.load(file.readline())
         except:
             logging.getLogger(__name__).warning('No saved token file')
@@ -48,7 +48,7 @@ class Token:
         """
         Save token info into the expected file
         """
-        with open(TOKEN_FILE, 'w') as file:
+        with open(public_parameters.TOKEN_FILE, 'w') as file:
             file.write(json.dumps({Token.ACCESS_TOKEN: self.access_token, Token.TOKEN_TYPE: self.token_type,
                                    Token.EXPIRATION_TIME: self.expiration_time}))
 

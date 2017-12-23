@@ -23,6 +23,11 @@ def main():
     dagan = DaganBot(updater.bot)
 
     # Add handler: Commands, Buttons and Error
+    """
+    start - Consulta de menús
+    subscriptions - Consultar suscripciones
+    help - Ayuda
+    """
     updater.dispatcher.add_handler(CommandHandler('start', dagan.start))
     updater.dispatcher.add_handler(CommandHandler('subscriptions', dagan.subscriptions))
     updater.dispatcher.add_handler(CommandHandler('help', dagan.help))
