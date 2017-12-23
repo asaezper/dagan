@@ -5,53 +5,32 @@ import threading
 import pkg_resources
 from telegram import InlineKeyboardButton
 
-from dagan.base_bot import MenuBaseBot
+from dagan.data.labels import NO_SUBS, HELP, NO_INFO, CHOOSE_MENU, AGAIN_BTN, SUB_BTN, REM_BTN, \
+    CHOOSE_RESTAURANT
+from dagan.data.public_parameters import THREAD_TIMER_SECONDS, SUBS_WEEKDAY_LIST, SUBS_HOUR_INTERVAL, MODE, \
+    CBDATA_CANCEL, CBDATA_REQUEST, CBDATA_RESTAURANT, CBDATA_MENU, CBDATA_SUBSCRIBE, CBDATA_UNSUBSCRIBE, CBDATA_START
 from dagan.database.db_manager import DBReader, DBManager
 from dagan.database.report_modes import ReportMode
-from dagan.internal_data import labels, dagan_parameters
-from dagan.messages import edit_msg, reply_msg, remove_msg, send_msg
-from dagan.objects.information import Bar, Menu
+from dagan.upv.info import Restaurant, Menu
+from dagan.upv.menu_bot import MenuBot
 
 
-class DaganBot(MenuBaseBot):
+class DaganBot(MenuBot):
+    """
+    Dagan Bot: A UPV Menus Telegram bot that communicates with users with commands and buttons
+    """
+
     def __init__(self, bot):
         super(DaganBot, self).__init__(bot)
+        # Start subscriptions thread
         self.subscriptions_thread = threading.Thread(target=self.check_subs)
         self.subscriptions_thread.start()
-
-    """ Subscription handlers """
-
-    def check_subs(self):
-        stopped = threading.Event()
-        while not stopped.wait(dagan_parameters.THREAD_TIMER_SECONDS):
-            # Check time
-            try:
-                weekday = datetime.datetime.today().weekday()
-                hour = datetime.datetime.today().hour + (datetime.datetime.today().minute / 60)
-                if weekday in dagan_parameters.SUBS_WEEKDAY_LIST and \
-                        dagan_parameters.SUBS_HOUR_INTERVAL[0] <= hour < dagan_parameters.SUBS_HOUR_INTERVAL[1]:
-                    self.update_info()
-                    with DBReader.subscriptions_lock:
-                        subs = dict(DBReader.subscriptions)
-                    reports = DBManager.read_reports()
-                    for chat_id in subs.keys():
-                        for bar_id in subs[chat_id].keys():
-                            for menu_id in subs[chat_id][bar_id]:
-                                if chat_id not in reports.keys() \
-                                        or bar_id not in reports[chat_id].keys() \
-                                        or menu_id not in reports[chat_id][bar_id]:
-                                    try:
-                                        self.send_menu_info_by_new(chat_id, bar_id, menu_id, chain=True)
-                                    except Exception as err:
-                                        logging.getLogger(__name__).exception(err)
-            except Exception as err:
-                logging.getLogger(__name__).exception(err)
 
     """ Command Handlers """
 
     def start(self, bot, update):
         try:
-            self.update_info()
+            self.reload()
             self.send_start_menu(update)
         except Exception as err:
             logging.getLogger(__name__).exception(err)
@@ -59,22 +38,51 @@ class DaganBot(MenuBaseBot):
     def subs(self, bot, update):
         try:
             info = ''
-            for bar_id, menu_id in DBReader.get_subscription_by_chat_id(update.message.chat_id):
+            for res_id, menu_id in DBReader.get_subscription_by_chat_id(update.message.chat_id):
                 try:
-                    info += self.info.bars[bar_id].generate_menu_name(int(menu_id))
+                    info += self.info.restaurants[res_id].show_menu_name(int(menu_id))
                 except:
-                    info += Bar._gen_menu_name(DBReader.bars[bar_id], DBReader.menus[bar_id][menu_id])
+                    info += Restaurant.generate_menu_name(DBReader.restaurants[res_id], DBReader.menus[res_id][menu_id])
             if not info:
-                info = labels.NO_SUBS
-            reply_msg(update, info)
+                info = NO_SUBS
+            self.send_msg(update.message.chat_id, info)
         except Exception as err:
             logging.getLogger(__name__).exception(err)
 
     def help(self, bot, update):
-        update.message.reply_text(labels.HELP + pkg_resources.require("dagan")[0].version, parse_mode=labels.MODE)
+        # FIXME
+        update.message.reply_text(HELP + pkg_resources.require("dagan")[0].version, parse_mode=MODE)
 
     def error(self, bot, update, error):
         logging.getLogger(__name__).warning('Update "%s" caused error "%s"', update, error)
+
+    """ Subscription handlers """
+
+    def check_subs(self):
+        stopped = threading.Event()
+        while not stopped.wait(THREAD_TIMER_SECONDS):
+            # Check time
+            try:
+                weekday = datetime.datetime.today().weekday()
+                hour = datetime.datetime.today().hour + (datetime.datetime.today().minute / 60)
+                if weekday in SUBS_WEEKDAY_LIST and \
+                        SUBS_HOUR_INTERVAL[0] <= hour < SUBS_HOUR_INTERVAL[1]:
+                    self.reload()
+                    with DBReader.subscriptions_lock:
+                        subs = dict(DBReader.subscriptions)
+                    reports = DBManager.read_reports()
+                    for chat_id in subs.keys():
+                        for res_id in subs[chat_id].keys():
+                            for menu_id in subs[chat_id][res_id]:
+                                if chat_id not in reports.keys() \
+                                        or res_id not in reports[chat_id].keys() \
+                                        or menu_id not in reports[chat_id][res_id]:
+                                    try:
+                                        self.send_menu_info_by_new(chat_id, res_id, menu_id, chain=True)
+                                    except Exception as err:
+                                        logging.getLogger(__name__).exception(err)
+            except Exception as err:
+                logging.getLogger(__name__).exception(err)
 
     """ Callback Query Handler """
 
@@ -82,39 +90,39 @@ class DaganBot(MenuBaseBot):
         try:
             query = update.callback_query
             my_req_id = query.data
-            if my_req_id == dagan_parameters.CBDATA_CANCEL:
+            if my_req_id == CBDATA_CANCEL:
                 # Cancel request
-                remove_msg(query)
-            if my_req_id.startswith(dagan_parameters.CBDATA_REQ):
+                self.remove_msg(query.message.chat_id, query.message.message_id)
+            if my_req_id.startswith(CBDATA_REQUEST):
                 # Request
-                my_req_id = my_req_id.split(dagan_parameters.CBDATA_REQ, 1)[-1]
-                if my_req_id.startswith(dagan_parameters.CBDATA_BAR):
-                    # Request bar info
-                    bar_id = int(my_req_id.replace(dagan_parameters.CBDATA_BAR, '', 1))
-                    self.send_bar_info(query, bar_id, chain=True)
-                elif my_req_id.startswith(dagan_parameters.CBDATA_MENU):
+                my_req_id = my_req_id.split(CBDATA_REQUEST, 1)[-1]
+                if my_req_id.startswith(CBDATA_RESTAURANT):
+                    # Request restaurant info
+                    res_id = int(my_req_id.replace(CBDATA_RESTAURANT, '', 1))
+                    self.send_restaurant_info(query, res_id, chain=True)
+                elif my_req_id.startswith(CBDATA_MENU):
                     # Request menu info
-                    my_req_id = my_req_id.replace(dagan_parameters.CBDATA_MENU, '', 1)
-                    menu_id, bar_id = my_req_id.split(dagan_parameters.CBDATA_BAR)
-                    bar_id, menu_id = int(bar_id), int(menu_id)
-                    self.send_menu_info_by_edit(query, bar_id, menu_id, chain=True)
-            elif my_req_id.startswith(dagan_parameters.CBDATA_SUBS):
+                    my_req_id = my_req_id.replace(CBDATA_MENU, '', 1)
+                    menu_id, res_id = my_req_id.split(CBDATA_RESTAURANT)
+                    res_id, menu_id = int(res_id), int(menu_id)
+                    self.send_menu_info_by_edit(query, res_id, menu_id, chain=True)
+            elif my_req_id.startswith(CBDATA_SUBSCRIBE):
                 # Subscription
-                my_req_id = my_req_id.split(dagan_parameters.CBDATA_SUBS, 1)[-1]
-                menu_id, bar_id = my_req_id.replace(dagan_parameters.CBDATA_MENU, '', 1).split(
-                    dagan_parameters.CBDATA_BAR)
-                bar_id, menu_id = int(bar_id), int(menu_id)
-                DBReader.add_subscription(update.effective_chat.id, bar_id, menu_id)
-                self.send_menu_info_by_edit(query, bar_id, menu_id, chain=True)
-            elif my_req_id.startswith(dagan_parameters.CBDATA_REM):
+                my_req_id = my_req_id.split(CBDATA_SUBSCRIBE, 1)[-1]
+                menu_id, res_id = my_req_id.replace(CBDATA_MENU, '', 1).split(
+                    CBDATA_RESTAURANT)
+                res_id, menu_id = int(res_id), int(menu_id)
+                DBReader.add_subscription(update.effective_chat.id, res_id, menu_id)
+                self.send_menu_info_by_edit(query, res_id, menu_id, chain=True)
+            elif my_req_id.startswith(CBDATA_UNSUBSCRIBE):
                 # Subscription
-                my_req_id = my_req_id.split(dagan_parameters.CBDATA_REM, 1)[-1]
-                menu_id, bar_id = my_req_id.replace(dagan_parameters.CBDATA_MENU, '', 1).split(
-                    dagan_parameters.CBDATA_BAR)
-                bar_id, menu_id = int(bar_id), int(menu_id)
-                DBReader.remove_subscription(update.effective_chat.id, bar_id, menu_id)
-                self.send_menu_info_by_edit(query, bar_id, menu_id, chain=True)
-            elif my_req_id == dagan_parameters.CBDATA_START:
+                my_req_id = my_req_id.split(CBDATA_UNSUBSCRIBE, 1)[-1]
+                menu_id, res_id = my_req_id.replace(CBDATA_MENU, '', 1).split(
+                    CBDATA_RESTAURANT)
+                res_id, menu_id = int(res_id), int(menu_id)
+                DBReader.remove_subscription(update.effective_chat.id, res_id, menu_id)
+                self.send_menu_info_by_edit(query, res_id, menu_id, chain=True)
+            elif my_req_id == CBDATA_START:
                 self.start(bot, query)
         except Exception as err:
             logging.getLogger(__name__).exception(err)
@@ -122,65 +130,71 @@ class DaganBot(MenuBaseBot):
     """ Data Senders """
 
     def send_start_menu(self, update):
-        if not self.info.bars:
-            reply_msg(update, labels.NO_INFO)
+        if not self.info.restaurants:
+            self.send_msg(update.message.chat_id, NO_INFO)
         else:
             keyboard = [
-                InlineKeyboardButton(bar.name, callback_data=dagan_parameters.CBDATA_REQ + Bar.generate_bar_cb(bar.id))
-                for bar in self.info.bars.values()]
-            reply_msg(update, labels.CHOOSE_BAR, keyboard)
+                InlineKeyboardButton(restaurant.name,
+                                     callback_data=CBDATA_REQUEST + Restaurant.generate_restaurant_cb(restaurant.id))
+                for restaurant in self.info.restaurants.values()]
+            self.send_msg(update.message.chat_id, CHOOSE_RESTAURANT, keyboard)
 
-    def send_bar_info(self, query, my_req_id, chain):
-        if my_req_id in self.info.bars.keys():
-            if self.info.bars[my_req_id].menus.__len__() == 1:
+    def send_restaurant_info(self, query, my_req_id, chain):
+        if my_req_id in self.info.restaurants.keys():
+            if self.info.restaurants[my_req_id].menus.__len__() == 1:
                 self.send_menu_info_by_edit(query, my_req_id, 0, chain)
-            elif self.info.bars[my_req_id].menus.__len__() > 1:
+            elif self.info.restaurants[my_req_id].menus.__len__() > 1:
                 keyboard = [InlineKeyboardButton(menu.name,
-                                                 callback_data=dagan_parameters.CBDATA_REQ + Menu.generate_menu_cb(
-                                                     my_req_id, self.info.bars[my_req_id].menus.index(menu)))
-                            for menu in self.info.bars[my_req_id].menus]
-                edit_msg(self.bot, query, labels.CHOOSE_MENU, keyboard, cols=1)
+                                                 callback_data=CBDATA_REQUEST + Menu.generate_menu_cb(
+                                                     my_req_id, self.info.restaurants[my_req_id].menus.index(menu)))
+                            for menu in self.info.restaurants[my_req_id].menus]
+                self.edit_msg(query.message.chat_id, query.message.message_id, CHOOSE_MENU, keyboard, cols=1)
             else:
-                edit_msg(self.bot, query, labels.NO_INFO)
+                self.edit_msg(query.message.chat_id, query.message.message_id, NO_INFO)
         else:
-            edit_msg(self.bot, query, labels.NO_INFO)
+            self.edit_msg(query.message.chat_id, query.message.message_id, NO_INFO)
 
-    def send_menu_info_by_edit(self, query, bar_id, menu_id, chain):
-        ok, chain_keyboard = self._generate_menu_info(query.message.chat_id, bar_id, menu_id, chain)
+    def send_menu_info_by_edit(self, query, res_id, menu_id, chain):
+        ok, chain_keyboard = self._generate_menu_info(query.message.chat_id, res_id, menu_id, chain)
         if ok:
-            edit_msg(self.bot, query, self.info.bars[bar_id].show_info(menu_id), chain_keyboard, with_cancel=False)
-            DBManager.report_menu(query.message.chat_id, bar_id, menu_id, mode=ReportMode.MANUAL)
+            self.edit_msg(query.message.chat_id, query.message.message_id,
+                          self.info.restaurants[res_id].show_info(menu_id),
+                          chain_keyboard, with_cancel=False)
+            DBManager.report_menu(query.message.chat_id, res_id, menu_id, mode=ReportMode.MANUAL)
         else:
-            edit_msg(self.bot, query, labels.NO_INFO, chain_keyboard, with_cancel=False)
+            self.edit_msg(query.message.chat_id, query.message.message_id, NO_INFO, chain_keyboard,
+                          with_cancel=False)
 
-    def send_menu_info_by_new(self, chat_id, bar_id, menu_id, chain):
-        ok, chain_keyboard = self._generate_menu_info(chat_id, bar_id, menu_id, chain)
+    def send_menu_info_by_new(self, chat_id, res_id, menu_id, chain):
+        ok, chain_keyboard = self._generate_menu_info(chat_id, res_id, menu_id, chain)
         if ok:
-            send_msg(self.bot, chat_id, self.info.bars[bar_id].show_info(menu_id), chain_keyboard, with_cancel=False)
-            DBManager.report_menu(chat_id, bar_id, menu_id, mode=ReportMode.AUTO)
+            self.send_msg(chat_id, self.info.restaurants[res_id].show_info(menu_id), chain_keyboard, with_cancel=False)
+            DBManager.report_menu(chat_id, res_id, menu_id, mode=ReportMode.AUTO)
 
-    def _generate_menu_info(self, chat_id, bar_id, menu_id, chain):
+    def _generate_menu_info(self, chat_id, res_id, menu_id, chain):
         chain_keyboard = []
         if chain:
-            chain_keyboard.append(InlineKeyboardButton(labels.AGAIN_BTN, callback_data=dagan_parameters.CBDATA_START))
-        chain_keyboard.append(self.generate_sub_rem_btn(chat_id, bar_id, menu_id))
-        if bar_id in self.info.bars.keys() and self.info.bars[bar_id].menus.__len__() > menu_id:
+            chain_keyboard.append(InlineKeyboardButton(AGAIN_BTN, callback_data=CBDATA_START))
+        chain_keyboard.append(self.generate_sub_rem_btn(chat_id, res_id, menu_id))
+        if res_id in self.info.restaurants.keys() and self.info.restaurants[res_id].menus.__len__() > menu_id:
             return True, chain_keyboard
         else:
             return False, chain_keyboard
 
     """ Auxiliary methods for Data Senders """
 
-    def generate_sub_rem_btn(self, chat_id, bar_id, menu_id):
-        if DBReader.check_subscription(chat_id, bar_id, menu_id):
-            return self._generate_unsub_btn(bar_id, menu_id)
+    def generate_sub_rem_btn(self, chat_id, res_id, menu_id):
+        if DBReader.check_subscription(chat_id, res_id, menu_id):
+            return self._generate_unsub_btn(res_id, menu_id)
         else:
-            return self._generate_sub_btn(bar_id, menu_id)
+            return self._generate_sub_btn(res_id, menu_id)
 
-    def _generate_sub_btn(self, bar_id, menu_id):
-        return InlineKeyboardButton(labels.SUB_BTN,
-                                    callback_data=dagan_parameters.CBDATA_SUBS + Menu.generate_menu_cb(bar_id, menu_id))
+    def _generate_sub_btn(self, res_id, menu_id):
+        return InlineKeyboardButton(SUB_BTN,
+                                    callback_data=CBDATA_SUBSCRIBE + Menu.generate_menu_cb(res_id,
+                                                                                           menu_id))
 
-    def _generate_unsub_btn(self, bar_id, menu_id):
-        return InlineKeyboardButton(labels.REM_BTN,
-                                    callback_data=dagan_parameters.CBDATA_REM + Menu.generate_menu_cb(bar_id, menu_id))
+    def _generate_unsub_btn(self, res_id, menu_id):
+        return InlineKeyboardButton(REM_BTN,
+                                    callback_data=CBDATA_UNSUBSCRIBE + Menu.generate_menu_cb(res_id,
+                                                                                             menu_id))
