@@ -34,6 +34,7 @@ class DaganBot(MenuBot):
         :param update: API's update instance
         """
         try:
+            self.report_busy(update.message.chat_id)
             self.reload()  # Update info
             self.send_start_keypad(update.message.chat_id)  # Send the keypad
         except Exception as err:
@@ -48,6 +49,7 @@ class DaganBot(MenuBot):
         :param update: API's update instance
         """
         try:
+            self.report_busy(update.message.chat_id)
             self.reload()  # Update info
             info = ''
             for res_id, menu_id in DataManager.get_subscription_by_chat_id(update.message.chat_id):
@@ -236,6 +238,7 @@ class DaganBot(MenuBot):
                                         or res_id not in reports[chat_id].keys() \
                                         or menu_id not in reports[chat_id][res_id]:  # No previous report
                                     try:
+                                        self.report_busy(chat_id)
                                         self.send_menu_info(chat_id, None, res_id, menu_id)
                                     except Exception as err:
                                         logging.getLogger(__name__).exception(err)

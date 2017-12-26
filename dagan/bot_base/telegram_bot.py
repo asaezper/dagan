@@ -1,4 +1,4 @@
-from telegram import InlineKeyboardMarkup
+from telegram import InlineKeyboardMarkup, ChatAction
 from telegram.inline.inlinekeyboardbutton import InlineKeyboardButton
 
 from dagan.data import public_parameters, labels
@@ -65,6 +65,9 @@ class TelegramBot:
         :param msg_id: Message's id to remove
         """
         self.bot.delete_message(chat_id=chat_id, message_id=msg_id)
+
+    def report_busy(self, chat_id):
+        self.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
 
     @staticmethod
     def prepare_keypad(button_list, cols, with_cancel):
