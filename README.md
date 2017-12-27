@@ -1,4 +1,4 @@
-<p align="center"><img width=50% src="https://github.com/asaezper/dagan/raw/develop/dagan/resources/logo.jpg"></p>
+<p align="center"><img width=20% src="https://github.com/asaezper/dagan/raw/develop/dagan/resources/logo.png"></p>
 
 ![Python](https://img.shields.io/badge/python-v3.5+-blue.svg)
 ![Contributions welcome](https://img.shields.io/badge/contributions-welcome-orange.svg)

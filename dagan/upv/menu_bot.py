@@ -1,4 +1,5 @@
 import datetime
+import logging
 
 import requests
 
@@ -32,10 +33,18 @@ class MenuBot(TelegramBot):
         Check if token is valid. If not, request it and save it
         """
         if not self.token.is_active():
-            token = requests.post(UPV_TOKEN_URL, timeout=UPV_TOKEN_TIMEOUT, headers=UPV_TOKEN_HEADERS,
-                                  data=UPV_TOKEN_TYPE, auth=(UPV_USER, UPV_PSW))
-            self.token.load(token.text)
+            self.token.load(self.request_token())
             self.token.save()
+
+    @staticmethod
+    def request_token():
+        text = ''
+        try:
+            text = requests.post(UPV_TOKEN_URL, timeout=UPV_TOKEN_TIMEOUT, headers=UPV_TOKEN_HEADERS,
+                                 data=UPV_TOKEN_TYPE, auth=(UPV_USER, UPV_PSW)).text
+        except Exception as err:
+            logging.getLogger(__name__).exception(err)
+        return text
 
     def reload_info(self):
         """
@@ -43,12 +52,20 @@ class MenuBot(TelegramBot):
         :return:
         """
         if not self.info.is_active():
-            list_com = requests.get(
+            self.info.load(self.request_info())
+
+    def request_info(self):
+        text = ''
+        try:
+            text = requests.get(
                 UPV_INFO_URL + '?' + UPV_INFO_DATE_PARAM + '=' + self.current_date() + '&' + UPV_INFO_CAMPUS_PARAM + '=' +
                 UPV_INFO_CAMPUS_DEFAULT + '&' + UPV_INFO_BAR_PARAM + '=' + UPV_INFO_BAR_DEFAULT,
                 timeout=UPV_INFO_TIMEOUT,
-                headers={UPV_INFO_HEADER_AUTH: self.token.token_type + " " + self.token.access_token + ':' + UPV_UUID})
-            self.info.load(list_com.text)
+                headers={
+                    UPV_INFO_HEADER_AUTH: self.token.token_type + " " + self.token.access_token + ':' + UPV_UUID}).text
+        except Exception as err:
+            logging.getLogger(__name__).exception(err)
+        return text
 
     @staticmethod
     def current_date():

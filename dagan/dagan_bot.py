@@ -203,7 +203,7 @@ class DaganBot(MenuBot):
                 # It is a regular message
                 self.edit_msg(chat_id, msg_id, info, keypad, with_cancel=False)
                 DataManager.report_menu(chat_id, res_id, menu_id, mode=ReportMode.MANUAL)
-        else:
+        elif msg_id is not None:
             self.edit_msg(chat_id, msg_id, labels.NO_INFO, keypad, with_cancel=False)
 
     """ Subscription handlers """
@@ -219,12 +219,12 @@ class DaganBot(MenuBot):
             # Execute below code each THREAD_TIMER_SECONDS seconds
             # Check time
             try:
+                logging.getLogger(__name__).info('Checking subscriptions...')
                 weekday = datetime.datetime.today().weekday()
                 hour = datetime.datetime.today().hour + (datetime.datetime.today().minute / 60)
                 if weekday in public_parameters.SUBS_WEEKDAY_LIST and \
                         public_parameters.SUBS_HOUR_INTERVAL[0] <= hour < public_parameters.SUBS_HOUR_INTERVAL[
                     1]:  # Valid day and hout
-                    logging.getLogger(__name__).info('Checking subscriptions...')
                     self.reload()  # Reload info
                     with DataManager.subscriptions_lock:
                         subs = dict(DataManager.subscriptions)  # Copy subscriptions to avoid conflict
@@ -242,6 +242,7 @@ class DaganBot(MenuBot):
                                         self.send_menu_info(chat_id, None, res_id, menu_id)
                                     except Exception as err:
                                         logging.getLogger(__name__).exception(err)
+                logging.getLogger(__name__).info('Checking subscriptions... Done')
             except Exception as err:
                 logging.getLogger(__name__).exception(err)
 

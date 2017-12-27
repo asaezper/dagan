@@ -8,8 +8,10 @@ from dagan.database.db_enums import ReportMode
 
 
 class DBManager:
-    conn = sqlite3.connect(public_parameters.DB_FILE, check_same_thread=False)  # Database connection
-    lock = threading.Lock()  # Lock for access to the DB
+    @classmethod
+    def initialize(cls):
+        cls.conn = sqlite3.connect(public_parameters.DB_FILE, check_same_thread=False)  # Database connection
+        cls.lock = threading.Lock()  # Lock for access to the DB
 
     @classmethod
     def read_restaurants(cls):

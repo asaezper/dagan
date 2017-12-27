@@ -105,8 +105,7 @@ ENV/
 
 # Project
 /scripts/
-upv_parameters.py
-private_parameters.py
-_tmp_token_file_.json
-dagan.db
-dagan-bup.db
+/dagan/upv/data/upv_parameters.py
+/dagan/data/private_parameters.py
+/dagan/resources/_tmp_token_file_.json
+/dagan/resources/dagan.db
