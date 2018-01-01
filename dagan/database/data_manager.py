@@ -4,15 +4,17 @@ from dagan.database.db_manager import DBManager
 
 
 class DataManager(DBManager):
+    restaurants = None
+    menus = None
+    subscriptions = None
+    subscriptions_lock = threading.Lock()  # Lock for multithread access to subscriptions information
+
     @classmethod
     def initialize(cls):
         DBManager.initialize()
         cls.restaurants = DBManager.read_restaurants()  # Basic restaurant info
         cls.menus = DBManager.read_menus()  # Basic manus info
-
         cls.subscriptions = DBManager.read_subscriptions()  # Actual subscriptions
-
-        cls.subscriptions_lock = threading.Lock()  # Lock for multithread access to subscriptions information
 
     @classmethod
     def check_subscription(cls, chat_id, res_id, menu_id):

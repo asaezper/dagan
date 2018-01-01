@@ -25,7 +25,7 @@ class DaganBot(MenuBot):
 
     """ Command Handlers """
 
-    def start(self, bot, update):
+    def start_cmd(self, bot, update):
         """
         Command Handler for start
         Send a keypad to select available restaurants
@@ -40,7 +40,21 @@ class DaganBot(MenuBot):
         except Exception as err:
             logging.getLogger(__name__).exception(err)
 
-    def subscriptions(self, bot, update):
+    def info_cmd(self, bot, update):
+        """
+        Command Handler for info
+        Send a keypad to select all restaurants
+
+        :param bot: API's bot instance
+        :param update: API's update instance
+        """
+        try:
+            self.report_busy(update.message.chat_id)
+            self.send_info_keypad(update.message.chat_id)
+        except Exception as err:
+            logging.getLogger(__name__).exception(err)
+
+    def subscriptions_cmd(self, bot, update):
         """
         Command Handler for subscriptions
         Send a message with the name of the menus you're subscribed
@@ -56,7 +70,7 @@ class DaganBot(MenuBot):
                 if self.info and res_id in self.info.restaurants.keys() and menu_id < len(
                         self.info.restaurants[res_id].menus):
                     info += self.info.restaurants[res_id].show_menu_name(int(menu_id))
-                else:
+                elif res_id in DataManager.restaurants.keys():
                     info += Restaurant.generate_menu_name(DataManager.restaurants[res_id],
                                                           DataManager.menus[res_id][menu_id])
             if not info:
@@ -65,7 +79,7 @@ class DaganBot(MenuBot):
         except Exception as err:
             logging.getLogger(__name__).exception(err)
 
-    def help(self, bot, update):
+    def help_cmd(self, bot, update):
         """
         Command Handler for help
         Send a message with some information about the bot
@@ -102,38 +116,54 @@ class DaganBot(MenuBot):
                 """ Cancel request """
                 self.remove_msg(*self.get_ids_in_update(prev_update))
 
-            if cb_info.startswith(public_parameters.CBDATA_REQUEST):
-                # Request
-                cb_info = cb_info.split(public_parameters.CBDATA_REQUEST, 1)[-1]  # Get information below REQUEST code
+            elif cb_info == public_parameters.CBDATA_START_CMD:
+                """ Start command """
+                self.start_cmd(bot, prev_update)
+
+            elif cb_info == public_parameters.CBDATA_INFO_CMD:
+                """ Info command """
+                self.info_cmd(bot, prev_update)
+
+            elif cb_info.startswith(public_parameters.CBDATA_REP_REQ):
+                """ Report request """
+                cb_info = cb_info.split(public_parameters.CBDATA_REP_REQ, 1)[-1]  # Get information below REQUEST code
 
                 if cb_info.startswith(public_parameters.CBDATA_RESTAURANT):
                     """ Request restaurant info """
                     res_id = int(cb_info.replace(public_parameters.CBDATA_RESTAURANT, '', 1))
                     # Info below restaurant Callback code is the restaurant id
-                    self.send_restaurant_info(*self.get_ids_in_update(prev_update), res_id)
+                    self.send_restaurant_report(*self.get_ids_in_update(prev_update), res_id)
 
                 elif cb_info.startswith(public_parameters.CBDATA_MENU):
                     """ Request menu info """
-                    res_id, menu_id = self.get_res_menu_id_in_request(cb_info)
-                    self.send_menu_info(*self.get_ids_in_update(prev_update), res_id, menu_id)
+                    res_id, menu_id, prev_cb = self.get_res_menu_id_in_request(cb_info)
+                    self.send_menu_report(*self.get_ids_in_update(prev_update), res_id, menu_id)
 
-            elif cb_info.startswith(public_parameters.CBDATA_SUBSCRIBE):
+            elif cb_info.startswith(public_parameters.CBDATA_INFO_REQ):
+                """ Info request """
+                cb_info = cb_info.split(public_parameters.CBDATA_INFO_REQ, 1)[-1]  # Get information below REQUEST code
+                res_id = int(cb_info.replace(public_parameters.CBDATA_RESTAURANT, '', 1))
+                self.send_info_restaurant(*self.get_ids_in_update(prev_update), res_id)
+
+            elif cb_info.startswith(public_parameters.CBDATA_SUBS_REQ):
                 """ Subscription """
-                cb_info = cb_info.replace(public_parameters.CBDATA_SUBSCRIBE, '', 1)
-                res_id, menu_id = self.get_res_menu_id_in_request(cb_info)
+                cb_info = cb_info.replace(public_parameters.CBDATA_SUBS_REQ, '', 1)
+                res_id, menu_id, prev_cb = self.get_res_menu_id_in_request(cb_info)
                 DataManager.subscribe(update.effective_chat.id, res_id, menu_id)
-                self.send_menu_info(*self.get_ids_in_update(prev_update), res_id, menu_id)
+                if prev_cb == public_parameters.CBDATA_MENU:
+                    self.send_menu_report(*self.get_ids_in_update(prev_update), res_id, menu_id)
+                elif prev_cb == public_parameters.CBDATA_INFO_REQ:
+                    self.send_info_restaurant(*self.get_ids_in_update(prev_update), res_id)
 
-            elif cb_info.startswith(public_parameters.CBDATA_UNSUBSCRIBE):
+            elif cb_info.startswith(public_parameters.CBDATA_UNSUBS_REQ):
                 """ Unsubscription request """
-                cb_info = cb_info.replace(public_parameters.CBDATA_UNSUBSCRIBE, '', 1)
-                res_id, menu_id = self.get_res_menu_id_in_request(cb_info)
+                cb_info = cb_info.replace(public_parameters.CBDATA_UNSUBS_REQ, '', 1)
+                res_id, menu_id, prev_cb = self.get_res_menu_id_in_request(cb_info)
                 DataManager.unsubscribe(update.effective_chat.id, res_id, menu_id)
-                self.send_menu_info(*self.get_ids_in_update(prev_update), res_id, menu_id)
-
-            elif cb_info == public_parameters.CBDATA_START:
-                """ Start """
-                self.start(bot, prev_update)
+                if prev_cb == public_parameters.CBDATA_MENU:
+                    self.send_menu_report(*self.get_ids_in_update(prev_update), res_id, menu_id)
+                elif prev_cb == public_parameters.CBDATA_INFO_REQ:
+                    self.send_info_restaurant(*self.get_ids_in_update(prev_update), res_id)
 
         except Exception as err:
             logging.getLogger(__name__).exception(err)
@@ -151,12 +181,12 @@ class DaganBot(MenuBot):
         else:
             keyboard = [
                 InlineKeyboardButton(restaurant.name,
-                                     callback_data=public_parameters.CBDATA_REQUEST + Restaurant.generate_restaurant_cb(
+                                     callback_data=public_parameters.CBDATA_REP_REQ + Restaurant.generate_restaurant_cb(
                                          restaurant.id))
                 for restaurant in self.info.restaurants.values()]
             self.send_msg(chat_id, labels.CHOOSE_RESTAURANT, keyboard)
 
-    def send_restaurant_info(self, chat_id, msg_id, res_id):
+    def send_restaurant_report(self, chat_id, msg_id, res_id):
         """
         Send a keypad with all menus available for this restaurant if there are more than one.
         Otherwise, it sends the info for the unique menu
@@ -170,10 +200,10 @@ class DaganBot(MenuBot):
                 self.edit_msg(chat_id, msg_id, labels.NO_INFO)
             elif len(self.info.restaurants[
                          res_id].menus) == 1:  # Just one menu for this restaurant - The bot sends its info
-                self.send_menu_info(chat_id, msg_id, res_id, 0)
+                self.send_menu_report(chat_id, msg_id, res_id, 0)
             else:  # More than one menu. The Bot sends a new keypad of menus
                 keyboard = [InlineKeyboardButton(menu.name,
-                                                 callback_data=public_parameters.CBDATA_REQUEST + Menu.generate_menu_cb(
+                                                 callback_data=public_parameters.CBDATA_REP_REQ + Menu.generate_menu_cb(
                                                      res_id,
                                                      menu_id))
                             for menu_id, menu in enumerate(self.info.restaurants[res_id].menus)]
@@ -181,7 +211,7 @@ class DaganBot(MenuBot):
         else:  # Restaurant not present in dictionary of current available info
             self.edit_msg(chat_id, msg_id.message_id, labels.NO_INFO)
 
-    def send_menu_info(self, chat_id, msg_id, res_id, menu_id):
+    def send_menu_report(self, chat_id, msg_id, res_id, menu_id):
         """
         Send the info of the requested menu
 
@@ -190,8 +220,8 @@ class DaganBot(MenuBot):
         :param res_id: Id of the restaurant
         :param menu_id: Id of the menu
         """
-        keypad = [InlineKeyboardButton(labels.AGAIN_BTN, callback_data=public_parameters.CBDATA_START),
-                  self.generate_sub_rem_btn(chat_id, res_id, menu_id)]
+        keypad = [InlineKeyboardButton(labels.AGAIN_BTN, callback_data=public_parameters.CBDATA_START_CMD),
+                  self.generate_sub_rem_btn(chat_id, res_id, menu_id, public_parameters.CBDATA_MENU)]
 
         if res_id in self.info.restaurants.keys() and len(self.info.restaurants[res_id].menus) > menu_id:
             info = self.info.restaurants[res_id].show_info(menu_id)
@@ -205,6 +235,32 @@ class DaganBot(MenuBot):
                 DataManager.report_menu(chat_id, res_id, menu_id, mode=ReportMode.MANUAL)
         elif msg_id is not None:
             self.edit_msg(chat_id, msg_id, labels.NO_INFO, keypad, with_cancel=False)
+
+    def send_info_keypad(self, chat_id):
+        """
+        Send a keypad with all menus available
+
+        :param chat_id: If of char to write
+        """
+        keyboard = [
+            InlineKeyboardButton(name,
+                                 callback_data=public_parameters.CBDATA_INFO_REQ + Restaurant.generate_restaurant_cb(
+                                     res_id)) for res_id, name in DataManager.restaurants.items()]
+        self.send_msg(chat_id, labels.CHOOSE_RESTAURANT, keyboard)
+
+    def send_info_restaurant(self, chat_id, msg_id, res_id):
+        """
+        Send information for a restaurant
+
+        :param chat_id: Id of chat
+        :param msg_id: Id of previous message
+        :param res_id: Id of the restaurant
+        """
+        msg = DataManager.restaurants[res_id]
+        keypad = [self.generate_sub_rem_btn(chat_id, res_id, menu_id, public_parameters.CBDATA_INFO_REQ, name) for
+                  menu_id, name in DataManager.menus[res_id].items()]
+        keypad.append(InlineKeyboardButton(labels.INFO_BTN, callback_data=public_parameters.CBDATA_INFO_CMD))
+        self.edit_msg(chat_id, msg_id, msg, keypad, with_cancel=False)
 
     """ Subscription handlers """
 
@@ -239,7 +295,7 @@ class DaganBot(MenuBot):
                                         or menu_id not in reports[chat_id][res_id]:  # No previous report
                                     try:
                                         self.report_busy(chat_id)
-                                        self.send_menu_info(chat_id, None, res_id, menu_id)
+                                        self.send_menu_report(chat_id, None, res_id, menu_id)
                                     except Exception as err:
                                         logging.getLogger(__name__).exception(err)
                 logging.getLogger(__name__).info('Checking subscriptions... Done')
@@ -253,31 +309,45 @@ class DaganBot(MenuBot):
         """
         Get restaurant and menu ids stored in a callback data
         :param cb_info: Text to process
-        :return: res_id, menu_id
+        :return: res_id, menu_id, prev_cb
         """
         cb_info = cb_info.replace(public_parameters.CBDATA_MENU, '', 1)  # Remove initial code
         menu_id, res_id = cb_info.split(public_parameters.CBDATA_RESTAURANT)
+        prev_cb = None
+        tmp_list = res_id.split(public_parameters.CBDATA_PREVIOUS_TYPE)
+        if len(tmp_list) == 2:
+            res_id = tmp_list[0]
+            prev_cb = tmp_list[1]
         # Menu - Restaurant ids are separated with public_parameters.CBDATA_RESTAURANT
-        return int(res_id), int(menu_id)
+        return int(res_id), int(menu_id), prev_cb
 
     @staticmethod
-    def generate_sub_rem_btn(chat_id, res_id, menu_id):
+    def generate_sub_rem_btn(chat_id, res_id, menu_id, prev_msg_type, name=None):
         """
         Returns a subscription button. Its value depends of subscription status for this chat and menu
 
         :param chat_id: Id of chat
         :param res_id: Id of restaurant
         :param menu_id: Id of menu
-        :return:
+        :param prev_msg_type: Callback data of the type of message that calls the [un]subscription
+        :param name: Extra text button
+        :return: The subscription button
         """
         if DataManager.check_subscription(chat_id, res_id, menu_id):
-            return InlineKeyboardButton(labels.REM_BTN,
-                                        callback_data=public_parameters.CBDATA_UNSUBSCRIBE + Menu.generate_menu_cb(
-                                            res_id, menu_id))
+            msg = labels.REM_BTN
+            if name is not None:
+                msg = name + labels.SUBS_SEPARATOR + msg
+            return InlineKeyboardButton(msg,
+                                        callback_data=public_parameters.CBDATA_UNSUBS_REQ + Menu.generate_menu_cb(
+                                            res_id, menu_id) + public_parameters.CBDATA_PREVIOUS_TYPE + prev_msg_type)
         else:
-            return InlineKeyboardButton(labels.SUB_BTN,
-                                        callback_data=public_parameters.CBDATA_SUBSCRIBE + Menu.generate_menu_cb(res_id,
-                                                                                                                 menu_id))
+            msg = labels.SUB_BTN
+            if name is not None:
+                msg = name + labels.SUBS_SEPARATOR + msg
+            return InlineKeyboardButton(msg,
+                                        callback_data=public_parameters.CBDATA_SUBS_REQ +
+                                                      Menu.generate_menu_cb(res_id, menu_id) +
+                                                      public_parameters.CBDATA_PREVIOUS_TYPE + prev_msg_type)
 
     @staticmethod
     def get_ids_in_update(update):

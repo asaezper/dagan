@@ -29,12 +29,14 @@ def main():
     # Add handler: Commands, Buttons and Error
     """
     start - Consulta de menús
-    subscriptions - Consultar suscripciones
+    info - Información de restaurantes
+    subscriptions - Consultar suscripciones activas
     help - Ayuda
     """
-    updater.dispatcher.add_handler(CommandHandler('start', dagan.start))
-    updater.dispatcher.add_handler(CommandHandler('subscriptions', dagan.subscriptions))
-    updater.dispatcher.add_handler(CommandHandler('help', dagan.help))
+    updater.dispatcher.add_handler(CommandHandler('start', dagan.start_cmd))
+    updater.dispatcher.add_handler(CommandHandler('info', dagan.info_cmd))
+    updater.dispatcher.add_handler(CommandHandler('subscriptions', dagan.subscriptions_cmd))
+    updater.dispatcher.add_handler(CommandHandler('help', dagan.help_cmd))
 
     updater.dispatcher.add_handler(CallbackQueryHandler(dagan.button))
     updater.dispatcher.add_error_handler(dagan.error)
