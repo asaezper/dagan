@@ -25,8 +25,12 @@ class DBManager:
             for row in c.execute("SELECT * from restaurant"):
                 res_id = int(row[0])
                 name = str(row[1])
+                phone = int(row[2]) if row[2] is not None else None
+                web = str(row[3]) if row[3] is not None else None
+                latitude = float(row[4]) if row[4] is not None else None
+                longitude = float(row[5]) if row[5] is not None else None
                 if res_id not in restaurants.keys():
-                    restaurants[res_id] = name
+                    restaurants[res_id] = [name, phone, web, latitude, longitude]
             return restaurants
 
     @classmethod

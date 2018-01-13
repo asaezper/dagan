@@ -30,8 +30,8 @@ class MockedExecution(unittest.TestCase):
     @patch('dagan.database.db_manager.DBManager.read_restaurants')
     @patch('dagan.upv.menu_bot.MenuBot.request_info')
     @patch('dagan.upv.menu_bot.MenuBot.request_token')
-    def test_change_date(self, request_token, request_info, read_restaurants, read_menus, read_subscriptions,
-                         read_reports, subscribe, unsubscribe, report_menu):
+    def test_execute(self, request_token, request_info, read_restaurants, read_menus, read_subscriptions,
+                     read_reports, subscribe, unsubscribe, report_menu):
         request_token.side_effect = lambda: TOKEN
         request_info.side_effect = lambda: INFO_JSON
 
@@ -46,6 +46,11 @@ class MockedExecution(unittest.TestCase):
         public_parameters.THREAD_TIMER_SECONDS = THREAD_TIMER_SECONDS
         public_parameters.SUBS_WEEKDAY_LIST = SUBS_WEEKDAY_LIST
         public_parameters.SUBS_HOUR_INTERVAL = SUBS_HOUR_INTERVAL
+        main()
+
+    @patch('dagan.upv.menu_bot.MenuBot.current_date')
+    def test_change_date(self, mock_today):
+        mock_today.side_effect = lambda: '15/01/2018'
         main()
 
     def save_report(self, chat_id, res_id, menu_id, report_date=None, mode=None):

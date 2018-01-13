@@ -71,7 +71,7 @@ class DaganBot(MenuBot):
                         self.info.restaurants[res_id].menus):
                     info += self.info.restaurants[res_id].show_menu_name(int(menu_id))
                 elif res_id in DataManager.restaurants.keys():
-                    info += Restaurant.generate_menu_name(DataManager.restaurants[res_id],
+                    info += Restaurant.generate_menu_name(DataManager.restaurants[res_id][0],
                                                           DataManager.menus[res_id][menu_id])
             if not info:
                 info = labels.NO_SUBS
@@ -243,9 +243,9 @@ class DaganBot(MenuBot):
         :param chat_id: If of char to write
         """
         keyboard = [
-            InlineKeyboardButton(name,
+            InlineKeyboardButton(info[0],
                                  callback_data=public_parameters.CBDATA_INFO_REQ + Restaurant.generate_restaurant_cb(
-                                     res_id)) for res_id, name in DataManager.restaurants.items()]
+                                     res_id)) for res_id, info in DataManager.restaurants.items()]
         self.send_msg(chat_id, labels.CHOOSE_RESTAURANT, keyboard)
 
     def send_info_restaurant(self, chat_id, msg_id, res_id):
@@ -256,11 +256,24 @@ class DaganBot(MenuBot):
         :param msg_id: Id of previous message
         :param res_id: Id of the restaurant
         """
-        msg = DataManager.restaurants[res_id]
+        info = DataManager.restaurants[res_id]
+        name = public_parameters.BOLD_START + info[0] + public_parameters.BOLD_END
         keypad = [self.generate_sub_rem_btn(chat_id, res_id, menu_id, public_parameters.CBDATA_INFO_REQ, name) for
                   menu_id, name in DataManager.menus[res_id].items()]
         keypad.append(InlineKeyboardButton(labels.INFO_BTN, callback_data=public_parameters.CBDATA_INFO_CMD))
-        self.edit_msg(chat_id, msg_id, msg, keypad, with_cancel=False)
+        # Title
+        self.edit_msg(chat_id, msg_id, name)
+        # Web
+        if info[2]:
+            self.send_msg(chat_id, info[2], parse_mode=public_parameters.PLAIN)
+        # Location
+        if info[3] and info[4]:
+            self.send_location(chat_id, info[3], info[4])
+        # Phone
+        if info[1]:
+            self.send_contact(chat_id, phone=info[1], name=info[0])
+        # Menus / Subs
+        self.send_msg(chat_id, labels.SUBS_MENUS, keypad, with_cancel=False)
 
     """ Subscription handlers """
 

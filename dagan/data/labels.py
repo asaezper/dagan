@@ -27,6 +27,11 @@ REM_BTN = 'Eliminar subscripción'
 SUBS_SEPARATOR = ' - '
 
 """
+Restaurant info
+"""
+SUBS_MENUS = 'Menús y suscripciones:'
+
+"""
 Menu info
 """
 PRICE = 'Precio: '

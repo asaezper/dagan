@@ -27,6 +27,7 @@ RESTAURANT_MENU_SEPARATOR = '  >  '
 KEYPAD_COLUMNS = 2
 
 MODE = 'Markdown'
+PLAIN = 'HTML'
 BOLD_START = '*'
 BOLD_END = '*'
 
