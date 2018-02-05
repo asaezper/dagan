@@ -17,7 +17,7 @@ def clean_text(text):
     return text.strip()
 
 
-class Info:
+class TodayInfo:
     """
     Class to store all restaurants and menus information for the UPV campus
     """
@@ -39,7 +39,7 @@ class Info:
         for item in json.loads(text):
             # Text is a list of dictionarys, and each dictionary contains info from the menu of a restaurant
             # (and all restaurant's information)
-            restaurant_instance = Restaurant(item)
+            restaurant_instance = TodayRestaurant(item)
             if restaurant_instance.id not in self.restaurants.keys():
                 self.restaurants[restaurant_instance.id] = restaurant_instance
             self.restaurants[restaurant_instance.id].add_menu(item)
@@ -52,7 +52,7 @@ class Info:
         return time.time() < self.expiration_time
 
 
-class Restaurant:
+class TodayRestaurant:
     """
     Information of a restaurant
     """
@@ -73,7 +73,7 @@ class Restaurant:
         Add a menu
         :param my_dict: Information of a menu
         """
-        self.menus.append(Menu(my_dict))
+        self.menus.append(TodayMenu(my_dict))
 
     def show_info(self, menu_index):
         """
@@ -126,7 +126,7 @@ class Restaurant:
         return public_parameters.CBDATA_RESTAURANT + str(res_id)
 
 
-class Menu:
+class TodayMenu:
     """
     Information of a menu
     """
@@ -142,12 +142,12 @@ class Menu:
         Parse the info (inside a dictionary)
         :param my_dict: Dict with menu info
         """
-        self.name = clean_text(my_dict[Menu.NAME])
-        self.first = clean_text(my_dict[Menu.FIRST])
-        self.second = clean_text(my_dict[Menu.SECOND])
-        self.others = clean_text(my_dict[Menu.OTHERS])
-        self.observations = clean_text(my_dict[Menu.OBSERVATIONS])
-        self.price = self.clean_price(clean_text(my_dict[Menu.PRICE]))
+        self.name = clean_text(my_dict[TodayMenu.NAME])
+        self.first = clean_text(my_dict[TodayMenu.FIRST])
+        self.second = clean_text(my_dict[TodayMenu.SECOND])
+        self.others = clean_text(my_dict[TodayMenu.OTHERS])
+        self.observations = clean_text(my_dict[TodayMenu.OBSERVATIONS])
+        self.price = self.clean_price(clean_text(my_dict[TodayMenu.PRICE]))
 
     def show_info(self):
         """

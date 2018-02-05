@@ -1,16 +1,20 @@
 import datetime
 import logging
-import sqlite3
 import threading
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, scoped_session
 
 from dagan.data import public_parameters
 from dagan.database.db_enums import ReportMode
+from dagan.database.entities import Restaurant, Subscription, Menu, Chat, MenuReport
 
 
 class DBManager:
     @classmethod
     def initialize(cls):
-        cls.conn = sqlite3.connect(public_parameters.DB_FILE, check_same_thread=False)  # Database connection
+        session_factory = sessionmaker(bind=create_engine('sqlite:///' + public_parameters.DB_FILE))
+        cls.Session = scoped_session(session_factory)
         cls.lock = threading.Lock()  # Lock for access to the DB
 
     @classmethod
@@ -20,37 +24,10 @@ class DBManager:
         :return: Dict of res_id: name
         """
         with cls.lock:
-            c = cls.conn.cursor()
             restaurants = {}
-            for row in c.execute("SELECT * from restaurant"):
-                res_id = int(row[0])
-                name = str(row[1])
-                phone = int(row[2]) if row[2] is not None else None
-                web = str(row[3]) if row[3] is not None else None
-                latitude = float(row[4]) if row[4] is not None else None
-                longitude = float(row[5]) if row[5] is not None else None
-                if res_id not in restaurants.keys():
-                    restaurants[res_id] = [name, phone, web, latitude, longitude]
+            for item in cls.Session().query(Restaurant).all():
+                restaurants[item.res_id] = item
             return restaurants
-
-    @classmethod
-    def read_menus(cls):
-        """
-        Read all menus info from database
-        :return: Dictionary of res_id: {menu_id: menu_name}
-        """
-        with cls.lock:
-            c = cls.conn.cursor()
-            menus = {}
-            for row in c.execute("SELECT * from menu"):
-                res_id = int(row[0])
-                menu_id = int(row[1])
-                name = str(row[2])
-                if res_id not in menus.keys():
-                    menus[res_id] = {}
-                if menu_id not in menus[res_id].keys():
-                    menus[res_id][menu_id] = name
-            return menus
 
     @classmethod
     def read_subscriptions(cls):
@@ -59,18 +36,14 @@ class DBManager:
         :return: Dictionary of chat_id: {res_id: [menu__id]}
         """
         with cls.lock:
-            c = cls.conn.cursor()
             subscriptions = {}
-            for row in c.execute("SELECT * from subscription"):
-                chat_id = int(row[0])
-                res_id = int(row[1])
-                menu_id = int(row[2])
-                if chat_id not in subscriptions.keys():
-                    subscriptions[chat_id] = {}
-                if res_id not in subscriptions[chat_id].keys():
-                    subscriptions[chat_id][res_id] = []
-                if menu_id not in subscriptions[chat_id][res_id]:
-                    subscriptions[chat_id][res_id].append(menu_id)
+            for item in cls.Session().query(Subscription).all():
+                if item.chat_id not in subscriptions.keys():
+                    subscriptions[item.chat_id] = {}
+                if item.res_id not in subscriptions[item.chat_id].keys():
+                    subscriptions[item.chat_id][item.res_id] = []
+                if item.menu_id not in subscriptions[item.chat_id][item.res_id]:
+                    subscriptions[item.chat_id][item.res_id].append(item.menu_id)
             return subscriptions
 
     @classmethod
@@ -137,13 +110,17 @@ class DBManager:
         :param mode: Report mode
         """
         with cls.lock:
+            session = cls.Session()
             try:
                 if report_date is None:
                     report_date = datetime.datetime.now()
-                c = cls.conn.cursor()
-                c.execute("INSERT INTO menu_report VALUES (?, ?, ?, ?, ?)",
-                          (chat_id, res_id, menu_id, report_date, mode.value))
-                cls.conn.commit()
+                mr = MenuReport()
+                mr.menu = session.query(Menu).filter(Menu.res_id == res_id).filter(Menu.menu_id == menu_id).all()[0]
+                mr.chat = session.query(Chat).filter(Chat.chat_id == chat_id).all()[0]
+                mr.report_date = report_date
+                mr.mode = mode
+                session.add(mr)
+                session.commit()
             except Exception as err:
-                cls.conn.rollback()
+                session.rollback()
                 logging.getLogger(__name__).exception(err)

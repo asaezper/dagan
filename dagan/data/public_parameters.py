@@ -54,5 +54,5 @@ SUBSCRIPTIONS
 """
 THREAD_TIMER_SECONDS = 600  # Second to wait between each execution of the subscription thread
 
-SUBS_WEEKDAY_LIST = range(4)  # Available Days for sending subscriptions 0 Monday - 6 Sunday
+SUBS_WEEKDAY_LIST = list(range(4))  # Available Days for sending subscriptions 0 Monday - 6 Sunday
 SUBS_HOUR_INTERVAL = [12, 15]  # Available hours for sending subscriptions

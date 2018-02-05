@@ -1,6 +1,7 @@
 import threading
 
 from dagan.database.db_manager import DBManager
+from dagan.database.entities import Subscription
 
 
 class DataManager(DBManager):
@@ -13,7 +14,6 @@ class DataManager(DBManager):
     def initialize(cls):
         DBManager.initialize()
         cls.restaurants = DBManager.read_restaurants()  # Basic restaurant info
-        cls.menus = DBManager.read_menus()  # Basic manus info
         cls.subscriptions = DBManager.read_subscriptions()  # Actual subscriptions
 
     @classmethod
@@ -36,13 +36,8 @@ class DataManager(DBManager):
         :param chat_id: Id of chat
         :return: List of [restaurant, menu]
         """
-        your_subs = []
         with cls.subscriptions_lock:
-            if chat_id in cls.subscriptions.keys():
-                for res_id in cls.subscriptions[chat_id]:
-                    for menu_id in cls.subscriptions[chat_id][res_id]:
-                        your_subs.append([res_id, menu_id])
-        return your_subs
+            return cls.Session().query(Subscription).filter(Subscription.chat_id == chat_id).all()
 
     @classmethod
     def subscribe(cls, chat_id, res_id, menu_id):

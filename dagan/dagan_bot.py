@@ -8,7 +8,7 @@ from telegram import InlineKeyboardButton
 from dagan.data import public_parameters, labels
 from dagan.database.data_manager import DataManager
 from dagan.database.db_enums import ReportMode
-from dagan.upv.info import Restaurant, Menu
+from dagan.upv.info import TodayRestaurant, TodayMenu
 from dagan.upv.menu_bot import MenuBot
 
 
@@ -66,13 +66,8 @@ class DaganBot(MenuBot):
             self.report_busy(update.message.chat_id)
             self.reload()  # Update info
             info = ''
-            for res_id, menu_id in DataManager.get_subscription_by_chat_id(update.message.chat_id):
-                if self.info and res_id in self.info.restaurants.keys() and menu_id < len(
-                        self.info.restaurants[res_id].menus):
-                    info += self.info.restaurants[res_id].show_menu_name(int(menu_id))
-                elif res_id in DataManager.restaurants.keys():
-                    info += Restaurant.generate_menu_name(DataManager.restaurants[res_id][0],
-                                                          DataManager.menus[res_id][menu_id])
+            for item in DataManager.get_subscription_by_chat_id(update.message.chat_id):
+                info += TodayRestaurant.generate_menu_name(item.menu.restaurant.name, item.menu.name)
             if not info:
                 info = labels.NO_SUBS
             self.send_msg(update.message.chat_id, info)
@@ -176,14 +171,14 @@ class DaganBot(MenuBot):
 
         :param chat_id: If of char to write
         """
-        if not self.info.restaurants:
+        if not self.today_info.restaurants:
             self.send_msg(chat_id, labels.NO_INFO)
         else:
             keyboard = [
                 InlineKeyboardButton(restaurant.name,
-                                     callback_data=public_parameters.CBDATA_REP_REQ + Restaurant.generate_restaurant_cb(
+                                     callback_data=public_parameters.CBDATA_REP_REQ + TodayRestaurant.generate_restaurant_cb(
                                          restaurant.id))
-                for restaurant in self.info.restaurants.values()]
+                for restaurant in self.today_info.restaurants.values()]
             self.send_msg(chat_id, labels.CHOOSE_RESTAURANT, keyboard)
 
     def send_restaurant_report(self, chat_id, msg_id, res_id):
@@ -195,18 +190,18 @@ class DaganBot(MenuBot):
         :param msg_id: Id of previous message
         :param res_id: Id of the restaurant
         """
-        if res_id in self.info.restaurants.keys():
-            if len(self.info.restaurants[res_id].menus) == 0:  # No menu for this restaurant
+        if res_id in self.today_info.restaurants.keys():
+            if len(self.today_info.restaurants[res_id].menus) == 0:  # No menu for this restaurant
                 self.edit_msg(chat_id, msg_id, labels.NO_INFO)
-            elif len(self.info.restaurants[
+            elif len(self.today_info.restaurants[
                          res_id].menus) == 1:  # Just one menu for this restaurant - The bot sends its info
                 self.send_menu_report(chat_id, msg_id, res_id, 0)
             else:  # More than one menu. The Bot sends a new keypad of menus
                 keyboard = [InlineKeyboardButton(menu.name,
-                                                 callback_data=public_parameters.CBDATA_REP_REQ + Menu.generate_menu_cb(
+                                                 callback_data=public_parameters.CBDATA_REP_REQ + TodayMenu.generate_menu_cb(
                                                      res_id,
                                                      menu_id))
-                            for menu_id, menu in enumerate(self.info.restaurants[res_id].menus)]
+                            for menu_id, menu in enumerate(self.today_info.restaurants[res_id].menus)]
                 self.edit_msg(chat_id, msg_id, labels.CHOOSE_MENU, keyboard, cols=1)
         else:  # Restaurant not present in dictionary of current available info
             self.edit_msg(chat_id, msg_id.message_id, labels.NO_INFO)
@@ -223,8 +218,8 @@ class DaganBot(MenuBot):
         keypad = [InlineKeyboardButton(labels.AGAIN_BTN, callback_data=public_parameters.CBDATA_START_CMD),
                   self.generate_sub_rem_btn(chat_id, res_id, menu_id, public_parameters.CBDATA_MENU)]
 
-        if res_id in self.info.restaurants.keys() and len(self.info.restaurants[res_id].menus) > menu_id:
-            info = self.info.restaurants[res_id].show_info(menu_id)
+        if res_id in self.today_info.restaurants.keys() and len(self.today_info.restaurants[res_id].menus) > menu_id:
+            info = self.today_info.restaurants[res_id].show_info(menu_id)
             if msg_id is None:
                 # It is a subscription message
                 self.send_msg(chat_id, info, keypad, with_cancel=False)
@@ -243,8 +238,8 @@ class DaganBot(MenuBot):
         :param chat_id: If of char to write
         """
         keyboard = [
-            InlineKeyboardButton(info[0],
-                                 callback_data=public_parameters.CBDATA_INFO_REQ + Restaurant.generate_restaurant_cb(
+            InlineKeyboardButton(info.name,
+                                 callback_data=public_parameters.CBDATA_INFO_REQ + TodayRestaurant.generate_restaurant_cb(
                                      res_id)) for res_id, info in DataManager.restaurants.items()]
         self.send_msg(chat_id, labels.CHOOSE_RESTAURANT, keyboard)
 
@@ -256,23 +251,21 @@ class DaganBot(MenuBot):
         :param msg_id: Id of previous message
         :param res_id: Id of the restaurant
         """
-        info = DataManager.restaurants[res_id]
-        name = public_parameters.BOLD_START + info[0] + public_parameters.BOLD_END
-        keypad = [self.generate_sub_rem_btn(chat_id, res_id, menu_id, public_parameters.CBDATA_INFO_REQ, name) for
-                  menu_id, name in DataManager.menus[res_id].items()]
-        keypad.append(InlineKeyboardButton(labels.INFO_BTN, callback_data=public_parameters.CBDATA_INFO_CMD))
+        res = DataManager.restaurants[res_id]
+        name = public_parameters.BOLD_START + res.name + public_parameters.BOLD_END
         # Title
         self.edit_msg(chat_id, msg_id, name)
-        # Web
-        if info[2]:
-            self.send_msg(chat_id, info[2], parse_mode=public_parameters.PLAIN)
         # Location
-        if info[3] and info[4]:
-            self.send_location(chat_id, info[3], info[4])
+        if res.latitude and res.longitude:
+            self.send_location(chat_id, res.latitude, res.longitude)
         # Phone
-        if info[1]:
-            self.send_contact(chat_id, phone=info[1], name=info[0])
+        if res.phone:
+            self.send_contact(chat_id, phone=res.phone, name=res.name)
         # Menus / Subs
+        keypad = [self.generate_sub_rem_btn(chat_id, res_id, menu.menu_id, public_parameters.CBDATA_INFO_REQ, menu.name)
+                  for menu in res.menus]
+        keypad.append(InlineKeyboardButton(labels.INFO_BTN, callback_data=public_parameters.CBDATA_INFO_CMD))
+
         self.send_msg(chat_id, labels.SUBS_MENUS, keypad, with_cancel=False)
 
     """ Subscription handlers """
@@ -351,7 +344,7 @@ class DaganBot(MenuBot):
             if name is not None:
                 msg = name + labels.SUBS_SEPARATOR + msg
             return InlineKeyboardButton(msg,
-                                        callback_data=public_parameters.CBDATA_UNSUBS_REQ + Menu.generate_menu_cb(
+                                        callback_data=public_parameters.CBDATA_UNSUBS_REQ + TodayMenu.generate_menu_cb(
                                             res_id, menu_id) + public_parameters.CBDATA_PREVIOUS_TYPE + prev_msg_type)
         else:
             msg = labels.SUB_BTN
@@ -359,7 +352,7 @@ class DaganBot(MenuBot):
                 msg = name + labels.SUBS_SEPARATOR + msg
             return InlineKeyboardButton(msg,
                                         callback_data=public_parameters.CBDATA_SUBS_REQ +
-                                                      Menu.generate_menu_cb(res_id, menu_id) +
+                                                      TodayMenu.generate_menu_cb(res_id, menu_id) +
                                                       public_parameters.CBDATA_PREVIOUS_TYPE + prev_msg_type)
 
     @staticmethod

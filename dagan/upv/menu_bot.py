@@ -7,7 +7,7 @@ from dagan.bot_base.telegram_bot import TelegramBot
 from dagan.upv.data.upv_parameters import UPV_TOKEN_URL, UPV_TOKEN_TIMEOUT, UPV_TOKEN_HEADERS, UPV_TOKEN_TYPE, UPV_PSW, \
     UPV_USER, UPV_INFO_DATE_PARAM, UPV_INFO_URL, UPV_INFO_CAMPUS_PARAM, UPV_INFO_CAMPUS_DEFAULT, UPV_INFO_BAR_DEFAULT, \
     UPV_INFO_BAR_PARAM, UPV_INFO_TIMEOUT, UPV_INFO_HEADER_AUTH, UPV_UUID, UPV_INFO_DATE_FORMAT
-from dagan.upv.info import Info
+from dagan.upv.info import TodayInfo
 from dagan.upv.token import Token
 
 
@@ -19,7 +19,7 @@ class MenuBot(TelegramBot):
     def __init__(self, bot):
         super(MenuBot, self).__init__(bot)
         self.token = Token()  # UPV Token
-        self.info = Info()  # Restaurants information
+        self.today_info = TodayInfo()  # Restaurants information
 
     def reload(self):
         """
@@ -51,8 +51,8 @@ class MenuBot(TelegramBot):
         Check if restaurants info is still valid. If not, request it and save ir
         :return:
         """
-        if not self.info.is_active():
-            self.info.load(self.request_info())
+        if not self.today_info.is_active():
+            self.today_info.load(self.request_info())
 
     def request_info(self):
         text = ''
