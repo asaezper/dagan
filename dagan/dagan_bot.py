@@ -3,6 +3,7 @@ import logging
 import threading
 
 import pkg_resources
+import unidecode
 from telegram import InlineKeyboardButton
 
 from dagan.data import public_parameters, labels
@@ -294,8 +295,14 @@ class DaganBot(MenuBot):
                                         or res_id not in reports[chat_id].keys() \
                                         or menu_id not in reports[chat_id][res_id]:  # No previous report
                                     try:
-                                        self.report_busy(chat_id)
-                                        self.send_menu_report(chat_id, None, res_id, menu_id)
+                                        if self.compare_menu_names(self.info.restaurants[res_id].menus[menu_id].name,
+                                                                   DataManager.menus[res_id][menu_id]):
+                                            self.report_busy(chat_id)
+                                            self.send_menu_report(chat_id, None, res_id, menu_id)
+                                        else:
+                                            logging.getLogger(__name__).warning('No cuadra: ' + str(
+                                                self.info.restaurants[res_id].menus[menu_id].name) + ' con ' + str(
+                                                DataManager.menus[res_id][menu_id]))
                                     except Exception as err:
                                         logging.getLogger(__name__).exception(err)
                 logging.getLogger(__name__).info('Checking subscriptions... Done')
@@ -303,6 +310,11 @@ class DaganBot(MenuBot):
                 logging.getLogger(__name__).exception(err)
 
     """ Auxiliary methods """
+
+    @staticmethod
+    def compare_menu_names(name1, name2):
+        return unidecode.unidecode(name1.lower()).replace(' ', '') == unidecode.unidecode(name2.lower()).replace(' ',
+                                                                                                                 '')
 
     @staticmethod
     def get_res_menu_id_in_request(cb_info):

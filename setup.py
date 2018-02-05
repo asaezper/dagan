@@ -11,7 +11,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='dagan',
-    version='0.5.4',
+    version='0.5.5',
     description='Telegram Bot for UPV restaurants',
     long_description=long_description,
     url='',
@@ -35,5 +35,6 @@ setup(
     install_requires=[
         'requests',  # Apache 2.0
         'python-telegram-bot ',  # LGPL-3
+        'unidecode'
     ],
 )
