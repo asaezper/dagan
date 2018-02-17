@@ -6,10 +6,8 @@ import pkg_resources
 from telegram import InlineKeyboardButton
 
 from dagan.data import public_parameters, labels
-from dagan.database.data_manager import DataManager
-from dagan.database.db_enums import ReportMode
-from dagan.upv.info import TodayRestaurant, TodayMenu
 from dagan.upv.menu_bot import MenuBot
+from dagan.upv.old_info import TodayRestaurant, TodayMenu
 
 
 class DaganBot(MenuBot):

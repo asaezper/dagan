@@ -33,6 +33,7 @@ setup(
     packages=find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
     include_package_data=True,
     install_requires=[
+        'unidecode',  # GPL v2
         'requests',  # Apache 2.0
         'python-telegram-bot ',  # LGPL-3
         'SQLAlchemy < 2',  # MIT

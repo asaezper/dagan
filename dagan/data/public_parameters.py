@@ -3,7 +3,7 @@ from dagan.resources import resource_path
 """
 INTERNAL_INFO
 """
-DB_FILE = resource_path('dagan.db')
+DB_URL = 'sqlite:///' + resource_path('dagan.db')
 
 """
 UPV INFO
