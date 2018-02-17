@@ -19,8 +19,6 @@ NEW_LINE = '\r\n'
 CLEAN_TEXT_REPLACE = [['#', NEW_LINE], [':s:', ''], ['  ', ' ']]
 
 ALL_INFO_REPLACE = [['\r\n', ''], ['\n', '']]
-RESTAURANT_REPLACE = [['Cafetería', ''], ['Cafeteria', ''], ['Cervecería', ''], ['Cerveceria', ''],
-                      ['Club Gastronómico', '']]
 PRICE_REPLACE = [(' Euros', '€'), (' euros', '€'), ('Euros', '€'), ('euros', '€')]
 RESTAURANT_MENU_SEPARATOR = '  >  '
 

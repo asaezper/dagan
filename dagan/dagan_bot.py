@@ -6,8 +6,8 @@ import pkg_resources
 from telegram import InlineKeyboardButton
 
 from dagan.data import public_parameters, labels
+from dagan.upv.info_manager import InfoManager
 from dagan.upv.menu_bot import MenuBot
-from dagan.upv.old_info import TodayRestaurant, TodayMenu
 
 
 class DaganBot(MenuBot):
@@ -18,8 +18,8 @@ class DaganBot(MenuBot):
     def __init__(self, bot):
         super(DaganBot, self).__init__(bot)
         # Start subscriptions thread
-        self.subscriptions_thread = threading.Thread(target=self.check_subs)
-        self.subscriptions_thread.start()
+        self.scheduled_thread = threading.Thread(target=self.check_scheduled_task)
+        self.scheduled_thread.start()
 
     """ Command Handlers """
 
@@ -64,8 +64,10 @@ class DaganBot(MenuBot):
             self.report_busy(update.message.chat_id)
             self.reload()  # Update info
             info = ''
-            for item in DataManager.get_subscription_by_chat_id(update.message.chat_id):
-                info += TodayRestaurant.generate_menu_name(item.menu.restaurant.name, item.menu.name)
+            if update.message.chat_id in InfoManager.chats.keys() and InfoManager.chats[
+                update.message.chat_id].subscriptions:
+                for sub in InfoManager.chats[update.message.chat_id].subscriptions:
+                    info += self.menu_name_to_show(sub.res_id, sub.menu_id)
             if not info:
                 info = labels.NO_SUBS
             self.send_msg(update.message.chat_id, info)
@@ -268,7 +270,7 @@ class DaganBot(MenuBot):
 
     """ Subscription handlers """
 
-    def check_subs(self):
+    def check_scheduled_task(self):
         """
         Method executed by the subscription checker thread.
         Send the info a subscribed menu if there are no previous messages for this user and menu today.

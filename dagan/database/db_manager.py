@@ -33,7 +33,10 @@ class DBManager:
     @classmethod
     def read_chats(cls):
         with cls.lock:
-            return cls.Session().query(Chat).all()
+            chats = []
+            for item in cls.Session().query(Chat).all():
+                chats[item.chat_id] = item
+            return chats
 
     @classmethod
     def read_menu_reports(cls):
