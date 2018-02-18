@@ -91,6 +91,26 @@ class InfoManager(DBManager):
         return text
 
     @classmethod
+    def get_available_restaurants(cls):
+        available_restaurants = []
+        for res in cls.restaurants.values():
+            for menu in res.menus.values():
+                if menu.today_menu is not None:
+                    available_restaurants.append(res)
+                    break
+        return available_restaurants
+
+    @classmethod
+    def check_subscription(cls, chat_id, res_id, menu_id):
+        found = False
+        if chat_id in cls.chats.keys():
+            for sub in cls.chats.subscriptions:
+                if sub.res_id == res_id and sub.menu_id == menu_id:
+                    found = True
+                    break
+        return found
+
+    @classmethod
     def is_active(cls):
         """
         Checks if this information is still valid

@@ -1,3 +1,4 @@
+import datetime
 from enum import Enum
 
 import unidecode
@@ -86,7 +87,7 @@ class MenuReport(Base):
     ForeignKeyConstraint([res_id, menu_id], [Menu.res_id, Menu.menu_id])
     chat_id = Column(Integer, ForeignKey('chat.chat_id'), primary_key=True)
     chat = relationship("Chat", lazy='select')
-    report_date = Column(DateTime, nullable=False, primary_key=True)
+    report_date = Column(DateTime, nullable=False, primary_key=True, default=datetime.datetime.now)
     mode = Column(Enum(ReportMode), nullable=False)
 
 
