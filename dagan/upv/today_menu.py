@@ -1,5 +1,5 @@
 from dagan.data import public_parameters
-from dagan.database.entities import Restaurant
+from dagan.database.entities import Menu
 
 
 class TodayMenu:
@@ -21,7 +21,7 @@ class TodayMenu:
         """
         self.res_id = int(self.clean_text(my_dict[self.RES_ID]))
         self.name = self.clean_text(my_dict[self.NAME])
-        self.codename = Restaurant.generate_codename(self.name)
+        self.codename = Menu.generate_codename(self.name)
         self.first = self.clean_text(my_dict[self.FIRST])
         self.second = self.clean_text(my_dict[self.SECOND])
         self.others = self.clean_text(my_dict[self.OTHERS])

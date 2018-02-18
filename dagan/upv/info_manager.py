@@ -104,7 +104,7 @@ class InfoManager(DBManager):
     def check_subscription(cls, chat_id, res_id, menu_id):
         found = False
         if chat_id in cls.chats.keys():
-            for sub in cls.chats.subscriptions:
+            for sub in cls.chats[chat_id].subscriptions:
                 if sub.res_id == res_id and sub.menu_id == menu_id:
                     found = True
                     break

@@ -1,10 +1,11 @@
 import datetime
-from enum import Enum
+import enum
 
+import sqlalchemy
 import unidecode
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Float, ForeignKeyConstraint, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Float, DateTime, ForeignKeyConstraint
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, reconstructor
 from sqlalchemy.orm.collections import attribute_mapped_collection
 
 from dagan.data import public_parameters
@@ -12,7 +13,7 @@ from dagan.data import public_parameters
 Base = declarative_base()
 
 
-class ReportMode(Enum):
+class ReportMode(enum.Enum):
     """
     Modes of a menu report in database
     """
@@ -28,7 +29,7 @@ class Restaurant(Base):
     web = Column(String)
     latitude = Column(Float)
     longitude = Column(Float)
-    menus = relationship("Menu", collection_class=attribute_mapped_collection('code'), back_populates="restaurant",
+    menus = relationship("Menu", collection_class=attribute_mapped_collection('menu_id'), back_populates="restaurant",
                          lazy='joined', cascade='all, delete-orphan')
 
 
@@ -43,9 +44,9 @@ class Menu(Base):
     def generate_codename(name):
         return unidecode.unidecode(name.lower()).replace(' ', '')
 
-    def __init__(self, *args, **kwargs):
-        super(Menu, self).__init__(args, kwargs)
-        self.codename = self.generate_codename()
+    @reconstructor
+    def init_on_load(self):
+        self.codename = self.generate_codename(self.name)
         self.today_menu = None
 
 
@@ -68,13 +69,13 @@ class Subscription(Base):
     menu = relationship("Menu", lazy='select')
     ForeignKeyConstraint([res_id, menu_id], [Menu.res_id, Menu.menu_id])
     chat_id = Column(Integer, ForeignKey('chat.chat_id'), primary_key=True)
-    chat = relationship("Chat", lazy='select')
+    chat = relationship("Chat", back_populates="subscriptions", lazy='select')
 
 
 class ScheduledSearch(Base):
     __tablename__ = 'scheduled_search'
     chat_id = Column(Integer, ForeignKey('chat.chat_id'), primary_key=True)
-    chat = relationship("Chat", lazy='select')
+    chat = relationship("Chat", back_populates="scheduled_searches", lazy='select')
     text_to_search = Column(String, primary_key=True)
 
 
@@ -87,7 +88,7 @@ class MenuReport(Base):
     chat_id = Column(Integer, ForeignKey('chat.chat_id'), primary_key=True)
     chat = relationship("Chat", lazy='select')
     report_date = Column(DateTime, nullable=False, primary_key=True, default=datetime.datetime.now)
-    mode = Column(Enum(ReportMode), nullable=False)
+    mode = Column(sqlalchemy.Enum(ReportMode), nullable=False)
 
 
 class SearchReport(Base):
@@ -97,4 +98,4 @@ class SearchReport(Base):
     text_to_search = Column(String, primary_key=True)
     results = Column(Integer, nullable=False)
     search_date = Column(DateTime, nullable=False, primary_key=True)
-    mode = Column(Enum(ReportMode), nullable=False)
+    mode = Column(sqlalchemy.Enum(ReportMode), nullable=False)

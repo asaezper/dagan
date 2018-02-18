@@ -199,7 +199,7 @@ class DaganBot(MenuBot):
                 keyboard = [InlineKeyboardButton(menu.name,
                                                  callback_data=public_parameters.CBDATA_REP_REQ + self.generate_menu_cb(
                                                      res_id, menu_id))
-                            for menu_id, menu in enumerate(InfoManager.restaurants[res_id].menus.items())]
+                            for menu_id, menu in InfoManager.restaurants[res_id].menus.items()]
                 self.edit_msg(chat_id, msg_id, labels.CHOOSE_MENU, keyboard, cols=1)
         else:  # Restaurant not present in current available info
             self.edit_msg(chat_id, msg_id.message_id, labels.NO_INFO)
@@ -216,8 +216,8 @@ class DaganBot(MenuBot):
         keypad = [InlineKeyboardButton(labels.AGAIN_BTN, callback_data=public_parameters.CBDATA_START_CMD),
                   self.generate_sub_rem_btn(chat_id, res_id, menu_id, public_parameters.CBDATA_MENU)]
         available_restaurants_ids = [res.res_id for res in InfoManager.get_available_restaurants()]
-        available_menu_codes = [menu.menu_id if menu.today_menu is not None else None
-                                for menu in InfoManager.restaurants[res_id]]
+        available_menu_codes = [menu_id if menu.today_menu is not None else None
+                                for menu_id, menu in InfoManager.restaurants[res_id].menus.items()]
 
         if res_id in available_restaurants_ids and menu_id in available_menu_codes:
             info = self.menu_today_to_show(res_id, menu_id)
@@ -282,26 +282,25 @@ class DaganBot(MenuBot):
             # Execute below code each THREAD_TIMER_SECONDS seconds
             # Check time
             try:
-                logging.getLogger(__name__).info('Checking subscriptions...')
+                logging.getLogger(__name__).info('Checking scheduled task...')
                 weekday = datetime.datetime.today().weekday()
                 hour = datetime.datetime.today().hour + (datetime.datetime.today().minute / 60)
                 if weekday in public_parameters.SUBS_WEEKDAY_LIST and \
                         public_parameters.SUBS_HOUR_INTERVAL[0] <= hour < public_parameters.SUBS_HOUR_INTERVAL[
                     1]:  # Valid day and hout
                     self.reload()  # Reload info
-                    with InfoManager.lock:
-                        reports = InfoManager.read_menu_reports()  # Get actual reports
-                        for chat in InfoManager.chats.values():
-                            for sub in chat.subscriptions:
-                                if sub.chat_id not in reports.keys() \
-                                        or sub.res_id not in reports[sub.chat_id].keys() \
-                                        or sub.menu_id not in reports[sub.chat_id][sub.res_id]:  # No previous report
-                                    try:
-                                        self.report_busy(sub.chat_id)
-                                        self.send_menu_report(sub.chat_id, None, sub.res_id, sub.menu_id)
-                                    except Exception as err:
-                                        logging.getLogger(__name__).exception(err)
-                logging.getLogger(__name__).info('Checking subscriptions... Done')
+                    reports = InfoManager.read_menu_reports()  # Get actual reports
+                    for chat in InfoManager.chats.values():
+                        for sub in chat.subscriptions:
+                            if sub.chat_id not in reports.keys() \
+                                    or sub.res_id not in reports[sub.chat_id].keys() \
+                                    or sub.menu_id not in reports[sub.chat_id][sub.res_id]:  # No previous report
+                                try:
+                                    self.report_busy(sub.chat_id)
+                                    self.send_menu_report(sub.chat_id, None, sub.res_id, sub.menu_id)
+                                except Exception as err:
+                                    logging.getLogger(__name__).exception(err)
+                logging.getLogger(__name__).info('Checking scheduled task... Done')
             except Exception as err:
                 logging.getLogger(__name__).exception(err)
 

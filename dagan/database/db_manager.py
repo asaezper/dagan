@@ -29,14 +29,16 @@ class DBManager:
             restaurants = {}
             for item in cls.Session().query(Restaurant).all():
                 restaurants[item.res_id] = item
+            cls.Session.remove()
             return restaurants
 
     @classmethod
     def read_chats(cls):
         with cls.lock:
-            chats = []
+            chats = {}
             for item in cls.Session().query(Chat).all():
                 chats[item.chat_id] = item
+            cls.Session.remove()
             return chats
 
     @classmethod
@@ -52,6 +54,7 @@ class DBManager:
                     menu_report[item.chat_id][item.res_id] = []
                 if item.menu_id not in menu_report[item.chat_id][item.res_id]:
                     menu_report[item.chat_id][item.res_id].append(item.menu_id)
+            cls.Session.remove()
             return menu_report
 
     @classmethod
@@ -60,24 +63,45 @@ class DBManager:
         sub.res_id = res_id
         sub.menu_id = menu_id
         sub.chat_id = chat_id
-        with cls.lock and cls.Session() as session:
-            cls.chats[chat_id].subscriptions.append(sub)
-            session.add(cls.chats[chat_id])
-            session.commit()
+        with cls.lock:
+            session = cls.Session()
+            if chat_id not in cls.chats.keys():
+                c = Chat()
+                c.chat_id = chat_id
+            else:
+                c = cls.chats[chat_id]
+            c.subscriptions.append(sub)
+            session.add(c)
+            try:
+                session.commit()
+                cls.chats[chat_id] = c
+                session.refresh(cls.chats[chat_id])
+            except:
+                session.rollback()
+            finally:
+                cls.Session.remove()
 
     @classmethod
     def unsubscribe(cls, chat_id, res_id, menu_id):
-        with cls.lock and cls.Session() as session:
+        with cls.lock:
+            session = cls.Session()
+            session.add(cls.chats[chat_id])
             for sub in cls.chats[chat_id].subscriptions:
                 if sub.res_id == res_id and sub.menu_id == menu_id:
                     cls.chats[chat_id].subscriptions.remove(sub)
                     break
-            session.add(cls.chats[chat_id])
-            session.commit()
+            try:
+                session.commit()
+                session.refresh(cls.chats[chat_id])
+            except:
+                session.rollback()
+            finally:
+                cls.Session.remove()
 
     @classmethod
     def report_menu(cls, chat_id, res_id, menu_id, report_date=None, mode=ReportMode.MANUAL):
-        with cls.lock and cls.Session() as session:
+        with cls.lock:
+            session = cls.Session()
             mr = MenuReport()
             mr.res_id = res_id
             mr.menu_id = menu_id
@@ -85,4 +109,9 @@ class DBManager:
             mr.report_date = datetime.datetime.now()
             mr.mode = mode
             session.add(mr)
-            session.commit()
+            try:
+                session.commit()
+            except:
+                session.rollback()
+            finally:
+                cls.Session.remove()
