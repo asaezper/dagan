@@ -3,7 +3,7 @@ from dagan.resources import resource_path
 """
 INTERNAL_INFO
 """
-DB_URL = 'sqlite:///' + resource_path('dagan.db')
+SQL_TIME_FORMAT = '%Y-%m-%d'
 
 """
 UPV INFO

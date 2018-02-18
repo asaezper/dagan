@@ -104,7 +104,7 @@ ENV/
 .idea/
 
 # Project
-/scripts/
+/scripts/sql/2.Master.sql
 /dagan/upv/data/upv_parameters.py
 /dagan/data/private_parameters.py
 /dagan/resources/_tmp_token_file_.json

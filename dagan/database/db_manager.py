@@ -4,7 +4,7 @@ import threading
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 
-from dagan.data import public_parameters
+from dagan.data import public_parameters, private_parameters
 from dagan.database.entities import Restaurant, Chat, MenuReport, ReportMode, Subscription
 
 
@@ -17,7 +17,7 @@ class DBManager:
 
     @classmethod
     def initialize(cls):
-        session_factory = sessionmaker(bind=create_engine(public_parameters.DB_URL))
+        session_factory = sessionmaker(bind=create_engine(private_parameters.DB_URL))
         cls.Session = scoped_session(session_factory)
 
         cls.chats = cls.read_chats()
@@ -44,7 +44,7 @@ class DBManager:
         menu_report = {}  # {chat_id: {res_id: {list_of_menu_ids}}
         with cls.lock:
             result_list = cls.Session().query(MenuReport).filter(
-                MenuReport.report_date >= datetime.date.today().strftime('%Y-%m-%d')).all()
+                MenuReport.report_date >= datetime.date.today().strftime(public_parameters.SQL_TIME_FORMAT)).all()
             for item in result_list:
                 if item.chat_id not in menu_report.keys():
                     menu_report[item.chat_id] = {}

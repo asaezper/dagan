@@ -38,7 +38,6 @@ class Menu(Base):
     restaurant = relationship("Restaurant", back_populates="menus", lazy='select')
     menu_id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
-    code = Column(String, nullable=False)
 
     @staticmethod
     def generate_codename(name):

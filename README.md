@@ -10,3 +10,16 @@ Telegram Bot for UPV restaurants
 ## License
 This project is licensed under the GNU GPLv3 - see the [LICENSE](LICENSE.) file for details
 
+## Development utils
+Prepare venv
+```bash
+python3 -m venv .venv --clear
+.venv\Scripts\python.exe -m pip install -U pip
+.venv\Scripts\python.exe -m pip install -U setuptools wheel
+.venv\Scripts\python.exe -m pip install -e .
+```
+
+Generate wheel
+```bash
+.venv\Scripts\python.exe setup.py bdist_wheel clean --all
+```
