@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-.venv/bin/python -m dagan &
+.venv/bin/python -m dagan

@@ -192,14 +192,19 @@ class DaganBot(MenuBot):
         :param res_id: Id of the restaurant
         """
         if res_id in [item.res_id for item in InfoManager.get_available_restaurants()]:
-            if len(InfoManager.restaurants[res_id].menus) == 1:
+            menu_list = []
+            for menu in InfoManager.restaurants[res_id].menus.values():
+                if menu.today_menu is not None:
+                    menu_list.append(menu)
+
+            if len(menu_list) == 1:
                 # Just one menu for this restaurant - The bot sends its info
-                self.send_menu_report(chat_id, msg_id, res_id, 0)
+                self.send_menu_report(chat_id, msg_id, res_id, menu_list[0].menu_id)
             else:  # More than one menu. The Bot sends a new keypad of menus
                 keyboard = [InlineKeyboardButton(menu.name,
                                                  callback_data=public_parameters.CBDATA_REP_REQ + self.generate_menu_cb(
-                                                     res_id, menu_id))
-                            for menu_id, menu in InfoManager.restaurants[res_id].menus.items()]
+                                                     res_id, menu.menu_id))
+                            for menu in menu_list]
                 self.edit_msg(chat_id, msg_id, labels.CHOOSE_MENU, keyboard, cols=1)
         else:  # Restaurant not present in current available info
             self.edit_msg(chat_id, msg_id.message_id, labels.NO_INFO)
