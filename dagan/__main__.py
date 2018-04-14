@@ -6,7 +6,6 @@ from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
 
 from dagan.dagan_bot import DaganBot
 from dagan.data import private_parameters
-from dagan.database.data_manager import DataManager
 from dagan.resources import resource_path
 
 
@@ -16,9 +15,6 @@ def main():
 
     # Override default exception handler
     sys.excepthook = lambda exctype, value, traceback: logging.getLogger(__name__).exception(value)
-
-    # Initialize Data Manager
-    DataManager.initialize()
 
     # Create the Updater and pass it bot's token.
     updater = Updater(private_parameters.BOT_TOKEN)

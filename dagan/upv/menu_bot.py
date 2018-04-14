@@ -1,76 +1,70 @@
-import datetime
-import logging
-
-import requests
-
 from dagan.bot_base.telegram_bot import TelegramBot
-from dagan.upv.data.upv_parameters import UPV_TOKEN_URL, UPV_TOKEN_TIMEOUT, UPV_TOKEN_HEADERS, UPV_TOKEN_TYPE, UPV_PSW, \
-    UPV_USER, UPV_INFO_DATE_PARAM, UPV_INFO_URL, UPV_INFO_CAMPUS_PARAM, UPV_INFO_CAMPUS_DEFAULT, UPV_INFO_BAR_DEFAULT, \
-    UPV_INFO_BAR_PARAM, UPV_INFO_TIMEOUT, UPV_INFO_HEADER_AUTH, UPV_UUID, UPV_INFO_DATE_FORMAT
-from dagan.upv.info import Info
-from dagan.upv.token import Token
+from dagan.data import public_parameters, labels
+from dagan.upv.info_manager import InfoManager
 
 
 class MenuBot(TelegramBot):
-    """
-    Menu Bot: A Telegram Bot that woks with data from restaurants of UPV campus
-    """
-
     def __init__(self, bot):
         super(MenuBot, self).__init__(bot)
-        self.token = Token()  # UPV Token
-        self.info = Info()  # Restaurants information
-
-    def reload(self):
-        """
-        Reload (if it is needed) the token of UPV APi and the information of restaurants
-        """
-        self.reload_token()
-        self.reload_info()
-
-    def reload_token(self):
-        """
-        Check if token is valid. If not, request it and save it
-        """
-        if not self.token.is_active():
-            self.token.load(self.request_token())
-            self.token.save()
+        InfoManager.initialize()
 
     @staticmethod
-    def request_token():
-        text = ''
-        try:
-            text = requests.post(UPV_TOKEN_URL, timeout=UPV_TOKEN_TIMEOUT, headers=UPV_TOKEN_HEADERS,
-                                 data=UPV_TOKEN_TYPE, auth=(UPV_USER, UPV_PSW)).text
-        except Exception as err:
-            logging.getLogger(__name__).exception(err)
-        return text
-
-    def reload_info(self):
-        """
-        Check if restaurants info is still valid. If not, request it and save ir
-        :return:
-        """
-        if not self.info.is_active():
-            self.info.load(self.request_info())
-
-    def request_info(self):
-        text = ''
-        try:
-            text = requests.get(
-                UPV_INFO_URL + '?' + UPV_INFO_DATE_PARAM + '=' + self.current_date() + '&' + UPV_INFO_CAMPUS_PARAM + '=' +
-                UPV_INFO_CAMPUS_DEFAULT + '&' + UPV_INFO_BAR_PARAM + '=' + UPV_INFO_BAR_DEFAULT,
-                timeout=UPV_INFO_TIMEOUT,
-                headers={
-                    UPV_INFO_HEADER_AUTH: self.token.token_type + " " + self.token.access_token + ':' + UPV_UUID}).text
-        except Exception as err:
-            logging.getLogger(__name__).exception(err)
-        return text
+    def reload():
+        InfoManager.reload()
 
     @staticmethod
-    def current_date():
+    def generate_restaurant_cb(res_id):
         """
-        Return current date in a format valid for UPV's API
-        :return: current date in a format valid for UPV's API
+        Generate callback data from a restaurant
+
+        :param res_id: Restaurant id
+        :return: Callback data
         """
-        return datetime.date.today().strftime(UPV_INFO_DATE_FORMAT)
+        return public_parameters.CBDATA_RESTAURANT + str(res_id)
+
+    @staticmethod
+    def generate_menu_cb(res_id, menu_id):
+        """
+        Generate callback data from a menu
+
+        :param res_id: Restaurant id
+        :param menu_id: Menu id
+        :return: Callback data
+        """
+        return public_parameters.CBDATA_MENU + str(menu_id) + public_parameters.CBDATA_RESTAURANT + str(res_id)
+
+    @staticmethod
+    def menu_name_to_show(res_id, menu_id):
+        res = InfoManager.restaurants[res_id]
+        menu = res.menus[menu_id]
+
+        return public_parameters.BOLD_START + res.name + public_parameters.RESTAURANT_MENU_SEPARATOR + \
+               menu.name + public_parameters.BOLD_END + public_parameters.NEW_LINE
+
+    @staticmethod
+    def menu_today_to_show(res_id, menu_id):
+        res = InfoManager.restaurants[res_id]
+        menu = res.menus[menu_id]
+
+        text = public_parameters.BOLD_START + res.name + public_parameters.RESTAURANT_MENU_SEPARATOR
+        text += menu.name + public_parameters.BOLD_END + public_parameters.NEW_LINE
+        if menu.today_menu.price:
+            text += labels.PRICE + menu.today_menu.price
+        text += public_parameters.NEW_LINE
+        if menu.today_menu.first:
+            text += public_parameters.NEW_LINE + public_parameters.BOLD_START + labels.FIRST + \
+                    public_parameters.BOLD_END + public_parameters.NEW_LINE
+            text += menu.today_menu.first + public_parameters.NEW_LINE
+        if menu.today_menu.second:
+            text += public_parameters.NEW_LINE + public_parameters.BOLD_START + labels.SECOND + \
+                    public_parameters.BOLD_END + public_parameters.NEW_LINE
+            text += menu.today_menu.second + public_parameters.NEW_LINE
+        if menu.today_menu.others:
+            text += public_parameters.NEW_LINE + public_parameters.BOLD_START + \
+                    labels.OTHERS + public_parameters.BOLD_END + public_parameters.NEW_LINE
+            text += menu.today_menu.others + public_parameters.NEW_LINE
+        if menu.today_menu.observations:
+            text += public_parameters.NEW_LINE + public_parameters.BOLD_START + \
+                    labels.OBSERVATIONS + public_parameters.BOLD_END + public_parameters.NEW_LINE
+            text += menu.today_menu.observations + public_parameters.NEW_LINE
+        return text.strip()

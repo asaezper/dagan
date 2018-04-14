@@ -1,0 +1,16 @@
+[Unit]
+Description=Dagan Service
+After=network.target
+ 
+[Service]
+User=pi
+Group=pi
+WorkingDirectory=/opt/dagan
+ExecStart=/opt/dagan/start-dagan.sh
+ExecStop=/opt/dagan/kill-dagan.sh
+StandardOutput=null
+Restart=always
+ 
+[Install]
+WantedBy=multi-user.target
+Alias=dagan.service

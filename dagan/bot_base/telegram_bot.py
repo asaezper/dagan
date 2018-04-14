@@ -12,7 +12,8 @@ class TelegramBot:
     def __init__(self, bot):
         self.bot = bot  # API's bot instance (token, basics methods, etc)
 
-    def send_msg(self, chat_id, msg_txt, button_list=None, cols=public_parameters.KEYPAD_COLUMNS, with_cancel=True):
+    def send_msg(self, chat_id, msg_txt, button_list=None, cols=public_parameters.KEYPAD_COLUMNS, with_cancel=True,
+                 parse_mode=public_parameters.MODE):
         """
         Method to send a message
 
@@ -21,9 +22,10 @@ class TelegramBot:
         :param button_list: List of buttons
         :param cols: Columns to distribute buttons
         :param with_cancel: Add a cancel button (True / False)
+        :param parse_mode: Parse Mode
         """
         keypad = self.prepare_keypad(button_list, cols, with_cancel)
-        self.bot.send_message(chat_id=chat_id, text=msg_txt, parse_mode=public_parameters.MODE, reply_markup=keypad)
+        self.bot.send_message(chat_id=chat_id, text=msg_txt, parse_mode=parse_mode, reply_markup=keypad)
 
     def edit_msg(self, chat_id, msg_id, msg_txt, button_list=None, cols=public_parameters.KEYPAD_COLUMNS,
                  with_cancel=True):
@@ -65,6 +67,12 @@ class TelegramBot:
         :param msg_id: Message's id to remove
         """
         self.bot.delete_message(chat_id=chat_id, message_id=msg_id)
+
+    def send_location(self, chat_id, latitude, longitude):
+        self.bot.send_location(chat_id=chat_id, latitude=latitude, longitude=longitude)
+
+    def send_contact(self, chat_id, name, phone):
+        self.bot.send_contact(chat_id=chat_id, phone_number=phone, first_name=name)
 
     def report_busy(self, chat_id):
         self.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
