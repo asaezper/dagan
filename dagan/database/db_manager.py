@@ -1,16 +1,16 @@
 import datetime
-import threading
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 
 from dagan.data import public_parameters, private_parameters
 from dagan.database.entities import Restaurant, Chat, MenuReport, ReportMode, Subscription
+from dagan.utils.dagan_rw_lock import DaganRWLock
 
 
 class DBManager:
     Session = None
-    lock = threading.Lock()  # Lock for access to the DB
+    db_lock = DaganRWLock()  # Lock for access to the DB
     chats = None
     menu_reports = None
     search_reports = None
@@ -25,7 +25,7 @@ class DBManager:
 
     @classmethod
     def read_restaurants(cls):
-        with cls.lock:
+        with cls.db_lock.reader():
             restaurants = {}
             for item in cls.Session().query(Restaurant).all():
                 restaurants[item.res_id] = item
@@ -34,7 +34,7 @@ class DBManager:
 
     @classmethod
     def read_chats(cls):
-        with cls.lock:
+        with cls.db_lock.reader():
             chats = {}
             for item in cls.Session().query(Chat).all():
                 chats[item.chat_id] = item
@@ -44,7 +44,7 @@ class DBManager:
     @classmethod
     def read_menu_reports(cls):
         menu_report = {}  # {chat_id: {res_id: {list_of_menu_ids}}
-        with cls.lock:
+        with cls.db_lock.reader():
             result_list = cls.Session().query(MenuReport).filter(
                 MenuReport.report_date >= datetime.date.today().strftime(public_parameters.SQL_TIME_FORMAT)).all()
             for item in result_list:
@@ -63,7 +63,7 @@ class DBManager:
         sub.res_id = res_id
         sub.menu_id = menu_id
         sub.chat_id = chat_id
-        with cls.lock:
+        with cls.db_lock.writer():
             session = cls.Session()
             if chat_id not in cls.chats.keys():
                 c = Chat()
@@ -83,7 +83,7 @@ class DBManager:
 
     @classmethod
     def unsubscribe(cls, chat_id, res_id, menu_id):
-        with cls.lock:
+        with cls.db_lock.writer():
             session = cls.Session()
             session.add(cls.chats[chat_id])
             for sub in cls.chats[chat_id].subscriptions:
@@ -100,14 +100,14 @@ class DBManager:
 
     @classmethod
     def report_menu(cls, chat_id, res_id, menu_id, report_date=None, mode=ReportMode.MANUAL):
-        with cls.lock:
+        mr = MenuReport()
+        mr.res_id = res_id
+        mr.menu_id = menu_id
+        mr.chat_id = chat_id
+        mr.report_date = datetime.datetime.now()
+        mr.mode = mode
+        with cls.db_lock.writer():
             session = cls.Session()
-            mr = MenuReport()
-            mr.res_id = res_id
-            mr.menu_id = menu_id
-            mr.chat_id = chat_id
-            mr.report_date = datetime.datetime.now()
-            mr.mode = mode
             session.add(mr)
             try:
                 session.commit()

@@ -11,7 +11,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='dagan',
-    version='0.6-dev',
+    version='0.6',
     description='Telegram Bot for UPV restaurants',
     long_description=long_description,
     url='',
@@ -30,7 +30,7 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
     ],
-    packages=find_packages(exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
+    packages=find_packages(exclude=["*_tests", "*_test"]),
     include_package_data=True,
     install_requires=[
         'unidecode',  # GPL v2

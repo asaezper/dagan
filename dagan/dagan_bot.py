@@ -35,7 +35,8 @@ class DaganBot(MenuBot):
         try:
             self.report_busy(update.message.chat_id)
             self.reload()  # Update info
-            self.send_start_keypad(update.message.chat_id)  # Send the keypad
+            with InfoManager.data_lock.reader():
+                self.send_start_keypad(update.message.chat_id)  # Send the keypad
         except Exception as err:
             logging.getLogger(__name__).exception(err)
 
@@ -49,7 +50,8 @@ class DaganBot(MenuBot):
         """
         try:
             self.report_busy(update.message.chat_id)
-            self.send_info_keypad(update.message.chat_id)
+            with InfoManager.data_lock.reader():
+                self.send_info_keypad(update.message.chat_id)
         except Exception as err:
             logging.getLogger(__name__).exception(err)
 
@@ -64,14 +66,15 @@ class DaganBot(MenuBot):
         try:
             self.report_busy(update.message.chat_id)
             self.reload()  # Update info
-            info = ''
-            if update.message.chat_id in InfoManager.chats.keys() and InfoManager.chats[
-                update.message.chat_id].subscriptions:
-                for sub in InfoManager.chats[update.message.chat_id].subscriptions:
-                    info += self.menu_name_to_show(sub.res_id, sub.menu_id)
-            if not info:
-                info = labels.NO_SUBS
-            self.send_msg(update.message.chat_id, info)
+            with InfoManager.data_lock.reader():
+                info = ''
+                if update.message.chat_id in InfoManager.chats.keys() and InfoManager.chats[
+                    update.message.chat_id].subscriptions:
+                    for sub in InfoManager.chats[update.message.chat_id].subscriptions:
+                        info += self.menu_name_to_show(sub.res_id, sub.menu_id)
+                if not info:
+                    info = labels.NO_SUBS
+                self.send_msg(update.message.chat_id, info)
         except Exception as err:
             logging.getLogger(__name__).exception(err)
 
@@ -128,38 +131,43 @@ class DaganBot(MenuBot):
                     """ Request restaurant info """
                     res_id = int(cb_info.replace(public_parameters.CBDATA_RESTAURANT, '', 1))
                     # Info below restaurant Callback code is the restaurant id
-                    self.send_restaurant_report(*self.get_ids_in_update(prev_update), res_id)
+                    with InfoManager.data_lock.reader():
+                        self.send_restaurant_report(*self.get_ids_in_update(prev_update), res_id)
 
                 elif cb_info.startswith(public_parameters.CBDATA_MENU):
                     """ Request menu info """
                     res_id, menu_id, prev_cb = self.get_res_menu_id_in_request(cb_info)
-                    self.send_menu_report(*self.get_ids_in_update(prev_update), res_id, menu_id)
+                    with InfoManager.data_lock.reader():
+                        self.send_menu_report(*self.get_ids_in_update(prev_update), res_id, menu_id)
 
             elif cb_info.startswith(public_parameters.CBDATA_INFO_REQ):
                 """ Info request """
                 cb_info = cb_info.split(public_parameters.CBDATA_INFO_REQ, 1)[-1]  # Get information below REQUEST code
                 res_id = int(cb_info.replace(public_parameters.CBDATA_RESTAURANT, '', 1))
-                self.send_info_restaurant(*self.get_ids_in_update(prev_update), res_id)
+                with InfoManager.data_lock.reader():
+                    self.send_info_restaurant(*self.get_ids_in_update(prev_update), res_id)
 
             elif cb_info.startswith(public_parameters.CBDATA_SUBS_REQ):
                 """ Subscription """
                 cb_info = cb_info.replace(public_parameters.CBDATA_SUBS_REQ, '', 1)
                 res_id, menu_id, prev_cb = self.get_res_menu_id_in_request(cb_info)
                 InfoManager.subscribe(update.effective_chat.id, res_id, menu_id)
-                if prev_cb == public_parameters.CBDATA_MENU:
-                    self.send_menu_report(*self.get_ids_in_update(prev_update), res_id, menu_id)
-                elif prev_cb == public_parameters.CBDATA_INFO_REQ:
-                    self.send_info_restaurant(*self.get_ids_in_update(prev_update), res_id)
+                with InfoManager.data_lock.reader():
+                    if prev_cb == public_parameters.CBDATA_MENU:
+                        self.send_menu_report(*self.get_ids_in_update(prev_update), res_id, menu_id)
+                    elif prev_cb == public_parameters.CBDATA_INFO_REQ:
+                        self.send_info_restaurant(*self.get_ids_in_update(prev_update), res_id)
 
             elif cb_info.startswith(public_parameters.CBDATA_UNSUBS_REQ):
                 """ Unsubscription request """
                 cb_info = cb_info.replace(public_parameters.CBDATA_UNSUBS_REQ, '', 1)
                 res_id, menu_id, prev_cb = self.get_res_menu_id_in_request(cb_info)
                 InfoManager.unsubscribe(update.effective_chat.id, res_id, menu_id)
-                if prev_cb == public_parameters.CBDATA_MENU:
-                    self.send_menu_report(*self.get_ids_in_update(prev_update), res_id, menu_id)
-                elif prev_cb == public_parameters.CBDATA_INFO_REQ:
-                    self.send_info_restaurant(*self.get_ids_in_update(prev_update), res_id)
+                with InfoManager.data_lock.reader():
+                    if prev_cb == public_parameters.CBDATA_MENU:
+                        self.send_menu_report(*self.get_ids_in_update(prev_update), res_id, menu_id)
+                    elif prev_cb == public_parameters.CBDATA_INFO_REQ:
+                        self.send_info_restaurant(*self.get_ids_in_update(prev_update), res_id)
 
         except Exception as err:
             logging.getLogger(__name__).exception(err)
@@ -294,17 +302,19 @@ class DaganBot(MenuBot):
                         public_parameters.SUBS_HOUR_INTERVAL[0] <= hour < public_parameters.SUBS_HOUR_INTERVAL[
                     1]:  # Valid day and hout
                     self.reload()  # Reload info
-                    reports = InfoManager.read_menu_reports()  # Get actual reports
-                    for chat in InfoManager.chats.values():
-                        for sub in chat.subscriptions:
-                            if sub.chat_id not in reports.keys() \
-                                    or sub.res_id not in reports[sub.chat_id].keys() \
-                                    or sub.menu_id not in reports[sub.chat_id][sub.res_id]:  # No previous report
-                                try:
-                                    self.report_busy(sub.chat_id)
-                                    self.send_menu_report(sub.chat_id, None, sub.res_id, sub.menu_id)
-                                except Exception as err:
-                                    logging.getLogger(__name__).exception(err)
+                    with InfoManager.report_lock.reader():
+                        reports = InfoManager.read_menu_reports()  # Get actual reports
+                    with InfoManager.data_lock.reader():
+                        for chat in InfoManager.chats.values():
+                            for sub in chat.subscriptions:
+                                if sub.chat_id not in reports.keys() \
+                                        or sub.res_id not in reports[sub.chat_id].keys() \
+                                        or sub.menu_id not in reports[sub.chat_id][sub.res_id]:  # No previous report
+                                    try:
+                                        self.report_busy(sub.chat_id)
+                                        self.send_menu_report(sub.chat_id, None, sub.res_id, sub.menu_id)
+                                    except Exception as err:
+                                        logging.getLogger(__name__).exception(err)
                 logging.getLogger(__name__).info('Checking scheduled task... Done')
             except Exception as err:
                 logging.getLogger(__name__).exception(err)

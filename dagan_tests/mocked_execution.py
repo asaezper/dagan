@@ -15,8 +15,8 @@ class MockedExecution(unittest.TestCase):
     def setUp(self):
         self.saved_reports = {}
 
-    @patch('dagan.upv.info_manager.InfoManager.request_info')
-    @patch('dagan.upv.info_manager.InfoManager.request_token')
+    @patch('dagan.upv.info_manager.InfoManager._request_info')
+    @patch('dagan.upv.info_manager.InfoManager._request_token')
     def test_execute(self, request_token, request_info):
         request_token.side_effect = lambda: test_upv.TOKEN
         request_info.side_effect = lambda: test_upv.INFO_JSON

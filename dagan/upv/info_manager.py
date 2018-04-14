@@ -7,12 +7,16 @@ import requests
 
 from dagan.data import public_parameters
 from dagan.database.db_manager import DBManager
+from dagan.database.entities import ReportMode
 from dagan.upv.data import upv_parameters
 from dagan.upv.today_menu import TodayMenu
 from dagan.upv.token import Token
+from dagan.utils.dagan_rw_lock import DaganRWLock
 
 
 class InfoManager(DBManager):
+    data_lock = DaganRWLock()  # Lock for access to info data (restaurants, chats, searches, ...)
+    report_lock = DaganRWLock()  # Lock for access to report data (reported menus, results, ...)
     restaurants = None
     token = Token()
     expiration_time = time.time()
@@ -27,20 +31,20 @@ class InfoManager(DBManager):
         """
         Reload (if it is needed) the token of UPV APi and the information of restaurants
         """
-        cls.reload_token()
-        cls.reload_info()
+        cls.__reload_token()
+        cls.__reload_info()
 
     @classmethod
-    def reload_token(cls):
+    def __reload_token(cls):
         """
         Check if token is valid. If not, request it and save it
         """
         if not cls.token.is_active():
-            cls.token.load(cls.request_token())
+            cls.token.load(cls._request_token())
             cls.token.save()
 
     @staticmethod
-    def request_token():
+    def _request_token():
         text = ''
         try:
             text = requests.post(upv_parameters.UPV_TOKEN_URL, timeout=upv_parameters.UPV_TOKEN_TIMEOUT,
@@ -51,32 +55,33 @@ class InfoManager(DBManager):
         return text
 
     @classmethod
-    def reload_info(cls):
+    def __reload_info(cls):
         """
         Check if restaurants info is still valid. If not, request it and save ir
         :return:
         """
         if not cls.is_active():
-            cls.restaurants = cls.read_restaurants()
-            text = cls.request_info()
-            for item in json.loads(text):
-                # Text is a list of dictionaries, and each dictionary contains info from the menu of a restaurant
-                # (and all restaurant's information)
-                tm = TodayMenu(item)
-                if tm.res_id in cls.restaurants.keys():
-                    found = False
-                    for menu in cls.restaurants[tm.res_id].menus.values():
-                        if menu.codename == tm.codename:
-                            menu.today_menu = tm
-                            found = True
-                            break
-                    if not found:
-                        logging.getLogger(__name__).warning('Menu not matched!! ' + str(item))
-                else:
-                    logging.getLogger(__name__).warning('Restaurant Id not found!! ' + str(item))
+            with cls.data_lock.writer():
+                cls.restaurants = cls.read_restaurants()
+                text = cls._request_info()
+                for item in json.loads(text):
+                    # Text is a list of dictionaries, and each dictionary contains info from the menu of a restaurant
+                    # (and all restaurant's information)
+                    tm = TodayMenu(item)
+                    if tm.res_id in cls.restaurants.keys():
+                        found = False
+                        for menu in cls.restaurants[tm.res_id].menus.values():
+                            if menu.codename == tm.codename:
+                                menu.today_menu = tm
+                                found = True
+                                break
+                        if not found:
+                            logging.getLogger(__name__).warning('Menu not matched!! ' + str(item))
+                    else:
+                        logging.getLogger(__name__).warning('Restaurant Id not found!! ' + str(item))
 
     @classmethod
-    def request_info(cls):
+    def _request_info(cls):
         text = ''
         try:
             text = requests.get(
@@ -109,6 +114,21 @@ class InfoManager(DBManager):
                     found = True
                     break
         return found
+
+    @classmethod
+    def subscribe(cls, chat_id, res_id, menu_id):
+        with cls.data_lock.writer():
+            DBManager.subscribe(chat_id, res_id, menu_id)
+
+    @classmethod
+    def unsubscribe(cls, chat_id, res_id, menu_id):
+        with cls.data_lock.writer():
+            DBManager.unsubscribe(chat_id, res_id, menu_id)
+
+    @classmethod
+    def report_menu(cls, chat_id, res_id, menu_id, report_date=None, mode=ReportMode.MANUAL):
+        with cls.report_lock.writer():
+            DBManager.report_menu(chat_id, res_id, menu_id, report_date, mode)
 
     @classmethod
     def is_active(cls):
